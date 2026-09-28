@@ -1,0 +1,182 @@
+import sqlite3
+import time
+from typing import List, Dict, Any, Optional
+from datetime import datetime, timezone
+import email.utils
+from pathlib import Path
+
+class Storage:
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+        self._init_db()
+
+    def _get_connection(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(str(self.db_path), timeout=10.0)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _init_db(self):
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS items (
+                    guid TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    link TEXT NOT NULL,
+                    author TEXT,
+                    source_feed TEXT,
+                    description TEXT,
+                    image_url TEXT,
+                    pub_date TEXT NOT NULL,
+                    pub_date_ts INTEGER NOT NULL,
+                    first_seen_ts INTEGER NOT NULL,
+                    raw_date_str TEXT
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS sync_meta (
+                    key TEXT PRIMARY KEY,
+                    value TEXT,
+                    updated_at INTEGER
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_pub_date_ts ON items (pub_date_ts DESC)")
+            conn.commit()
+
+    def save_items(self, items: List[Dict[str, Any]]) -> int:
+        """
+        Saves or updates items. Returns count of newly inserted items.
+        Keeps original pub_date and first_seen_ts for existing items.
+        """
+        now_ts = int(time.time())
+        new_count = 0
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            for it in items:
+                guid = it["guid"]
+                cursor.execute("SELECT guid, pub_date, pub_date_ts, first_seen_ts FROM items WHERE guid = ?", (guid,))
+                existing = cursor.fetchone()
+
+                if existing:
+                    # Keep original timestamp
+                    cursor.execute("""
+                        UPDATE items SET
+                            title = ?,
+                            link = ?,
+                            author = ?,
+                            source_feed = ?,
+                            description = ?,
+                            image_url = ?,
+                            raw_date_str = ?
+                        WHERE guid = ?
+                    """, (
+                        it["title"],
+                        it["link"],
+                        it.get("author", ""),
+                        it.get("source_feed", ""),
+                        it.get("description", ""),
+                        it.get("image_url", ""),
+                        it.get("raw_date_str", ""),
+                        guid
+                    ))
+                else:
+                    new_count += 1
+                    pub_ts = it.get("pub_date_ts", now_ts)
+                    pub_date_rfc = it.get("pub_date")
+                    if not pub_date_rfc:
+                        dt = datetime.fromtimestamp(pub_ts, tz=timezone.utc)
+                        pub_date_rfc = email.utils.format_datetime(dt)
+
+                    cursor.execute("""
+                        INSERT INTO items (
+                            guid, title, link, author, source_feed,
+                            description, image_url, pub_date, pub_date_ts,
+                            first_seen_ts, raw_date_str
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        guid,
+                        it["title"],
+                        it["link"],
+                        it.get("author", ""),
+                        it.get("source_feed", ""),
+                        it.get("description", ""),
+                        it.get("image_url", ""),
+                        pub_date_rfc,
+                        pub_ts,
+                        now_ts,
+                        it.get("raw_date_str", "")
+                    ))
+
+            conn.commit()
+
+        return new_count
+
+    def get_items(self, limit: int = 100) -> List[Dict[str, Any]]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT guid, title, link, author, source_feed,
+                       description, image_url, pub_date, pub_date_ts,
+                       first_seen_ts, raw_date_str
+                FROM items
+                ORDER BY pub_date_ts DESC, first_seen_ts DESC
+                LIMIT ?
+            """, (limit,))
+            rows = cursor.fetchall()
+            return [dict(r) for r in rows]
+
+    def count_items(self) -> int:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM items")
+            return cursor.fetchone()[0]
+
+    def prune_items(self, max_items: int = 200):
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                DELETE FROM items
+                WHERE guid NOT IN (
+                    SELECT guid FROM items
+                    ORDER BY pub_date_ts DESC, first_seen_ts DESC
+                    LIMIT ?
+                )
+            """, (max_items,))
+            conn.commit()
+
+    def set_meta(self, key: str, value: str):
+        now_ts = int(time.time())
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO sync_meta (key, value, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    updated_at = excluded.updated_at
+            """, (key, value, now_ts))
+            conn.commit()
+
+    def get_meta(self, key: str) -> Optional[str]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM sync_meta WHERE key = ?", (key,))
+            row = cursor.fetchone()
+            return row["value"] if row else None
+
+    def get_sync_status(self) -> Dict[str, Any]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT key, value, updated_at FROM sync_meta")
+            meta = {r["key"]: r["value"] for r in cursor.fetchall()}
+            cursor.execute("SELECT COUNT(*) FROM items")
+            total = cursor.fetchone()[0]
+
+            return {
+                "total_items": total,
+                "last_sync_time": meta.get("last_sync_time"),
+                "last_sync_status": meta.get("last_sync_status", "Never synced"),
+                "last_error": meta.get("last_error", None),
+                "feed_title": meta.get("feed_title", "SU"),
+            }

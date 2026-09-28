@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  inoreader-rss-bridge:
+    build: .
+    container_name: inoreader-rss-bridge
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - INOREADER_URL=https://www.inoreader.com/stream/user/1006125058/tag/SU/view/html?cs=m
+      - FETCH_INTERVAL_MINUTES=15
+      - MAX_STORED_ITEMS=200
+      - FEED_TITLE=SU - Inoreader Akışı
+      - PUBLIC_BASE_URL=
+    volumes:
+      - inoreader-data:/app/data
+
+volumes:
+  inoreader-data:
