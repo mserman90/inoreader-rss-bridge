@@ -56,7 +56,7 @@ def main():
             new_cat
         )
 
-    public_url = config.PUBLIC_BASE_URL or "https://mserman90.github.io/inoreader-rss-bridge"
+    public_url = config.PUBLIC_BASE_URL or "https://mserman90.github.io/suhaberportali"
     rss_self = f"{public_url}/rss.xml"
     atom_self = f"{public_url}/atom.xml"
     json_self = f"{public_url}/feed.json"

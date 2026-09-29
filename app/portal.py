@@ -1112,7 +1112,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             <h4>SU HABER BÜLTENİ</h4>
             <p>Akademik araştırmalar, hakemli dergiler ve küresel su kurumlarından derlenen günlük dijital su gazetesi.</p>
             <p style="font-size:11.5px; opacity:0.75;">
-                Otomasyon: GitHub Actions ile 30 dakikada bir güncellenir &bull; Son Güncelleme: {last_updated} &bull; Depo: mserman90/inoreader-rss-bridge
+                Otomasyon: GitHub Actions ile 30 dakikada bir güncellenir &bull; Son Güncelleme: {last_updated} &bull; Depo: mserman90/suhaberportali
             </p>
         </div>
     </footer>

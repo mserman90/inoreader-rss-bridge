@@ -3,7 +3,7 @@
 push_to_github.py
 Bu betik, yerel Git deposunu oluşturduğunuz GitHub deposuna push eder.
 Kullanım:
-    python push_to_github.py https://github.com/mserman90/inoreader-rss-bridge.git [GITHUB_TOKEN]
+    python push_to_github.py https://github.com/mserman90/suhaberportali.git [GITHUB_TOKEN]
 """
 
 import sys
@@ -14,7 +14,7 @@ from dulwich.porcelain import push
 def main():
     if len(sys.argv) < 2:
         print("Kullanım: python push_to_github.py <REPO_URL> [GITHUB_TOKEN]")
-        print("Örnek:   python push_to_github.py https://github.com/mserman90/inoreader-rss-bridge.git")
+        print("Örnek:   python push_to_github.py https://github.com/mserman90/suhaberportali.git")
         return
 
     remote_url = sys.argv[1].strip()

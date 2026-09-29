@@ -1,9 +1,9 @@
 version: "3.8"
 
 services:
-  inoreader-rss-bridge:
+  suhaberportali:
     build: .
-    container_name: inoreader-rss-bridge
+    container_name: suhaberportali
     restart: unless-stopped
     ports:
       - "8000:8000"
