@@ -115,8 +115,21 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         </article>
         """
 
-    # Ticker titles
-    ticker_items = "".join([f'<span class="ticker-item" onclick="openArticleModal({it["id"]})">🔥 {html.escape(it["title_tr"])}</span>' for it in portal_data[:8]])
+    # Ticker items (Continuous scrolling banner - top 15 articles)
+    ticker_elements = []
+    for it in portal_data[:15]:
+        cat_badge = f'<span class="ticker-cat-tag">[{html.escape(it["category"])}]</span>'
+        ticker_elements.append(
+            f'<span class="ticker-item" onclick="openArticleModal({it["id"]})">'
+            f'<span class="ticker-icon">⚡</span> '
+            f'{cat_badge} '
+            f'<span class="ticker-text">{html.escape(it["title_tr"])}</span>'
+            f'<span class="ticker-sep">&bull;</span>'
+            f'</span>'
+        )
+    single_track_html = "".join(ticker_elements)
+    # Double track ensures seamless infinite loop with zero jump
+    ticker_track_content = single_track_html + single_track_html
 
     # Hero element
     hero_html = ""
@@ -378,7 +391,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             transition: border-color 0.25s ease;
         }}
 
-        /* Breaking News Ticker */
+        /* Breaking News Ticker (Continuous Scrolling) */
         .breaking-ticker-wrap {{
             max-width: 1240px;
             margin: 0 auto 16px;
@@ -390,35 +403,142 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             background: var(--ticker-bg);
             border: 1px solid var(--border-line);
             border-left: 5px solid var(--accent-red);
-            border-radius: 4px;
+            border-radius: 6px;
             overflow: hidden;
             box-shadow: var(--shadow-subtle);
+            height: 42px;
+            position: relative;
             transition: background-color 0.25s ease, border-color 0.25s ease;
         }}
         .ticker-label {{
             background: var(--accent-red);
-            color: white;
+            color: #ffffff;
             font-weight: 800;
             font-size: 11px;
-            padding: 8px 14px;
-            letter-spacing: 1px;
+            padding: 0 14px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 1.2px;
             white-space: nowrap;
+            z-index: 5;
+            flex-shrink: 0;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.12);
+        }}
+        .ticker-pulse {{
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #ffffff;
+            animation: tickerPulse 1.6s ease-in-out infinite;
+        }}
+        @keyframes tickerPulse {{
+            0% {{ transform: scale(0.9); opacity: 0.6; }}
+            50% {{ transform: scale(1.3); opacity: 1; }}
+            100% {{ transform: scale(0.9); opacity: 0.6; }}
         }}
         .ticker-marquee {{
             flex: 1;
             overflow: hidden;
             white-space: nowrap;
-            padding: 6px 12px;
-            font-size: 13px;
-            font-weight: 500;
+            position: relative;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 24px), transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 24px), transparent);
+        }}
+        .ticker-track {{
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            will-change: transform;
+            animation: continuousTickerScroll 45s linear infinite;
+        }}
+        .ticker-track:hover {{
+            animation-play-state: paused;
+            cursor: pointer;
+        }}
+        @keyframes continuousTickerScroll {{
+            0% {{
+                transform: translateX(0);
+            }}
+            100% {{
+                transform: translateX(-50%);
+            }}
         }}
         .ticker-item {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             margin-right: 32px;
             cursor: pointer;
             color: var(--ink-dark);
+            font-size: 13px;
+            font-weight: 500;
             text-decoration: none;
+            transition: color 0.15s ease;
         }}
-        .ticker-item:hover {{ color: var(--accent-red); text-decoration: underline; }}
+        .ticker-item:hover {{
+            color: var(--accent-red);
+        }}
+        .ticker-item:hover .ticker-text {{
+            text-decoration: underline;
+        }}
+        .ticker-icon {{
+            color: var(--accent-red);
+            font-size: 12px;
+        }}
+        .ticker-cat-tag {{
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--newspaper-blue);
+            opacity: 0.9;
+        }}
+        .ticker-sep {{
+            margin-left: 20px;
+            color: var(--border-line);
+            font-size: 14px;
+        }}
+
+        /* Live Update Floating Toast */
+        .live-update-toast {{
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--top-bar-bg);
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            display: none;
+            align-items: center;
+            gap: 16px;
+            z-index: 9999;
+            font-size: 13px;
+            border-left: 4px solid var(--accent-red);
+            animation: slideUpToast 0.4s ease-out;
+        }}
+        @keyframes slideUpToast {{
+            from {{ transform: translateY(80px); opacity: 0; }}
+            to {{ transform: translateY(0); opacity: 1; }}
+        }}
+        .btn-refresh-toast {{
+            background: var(--accent-red);
+            color: #ffffff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 12px;
+            transition: opacity 0.2s ease;
+        }}
+        .btn-refresh-toast:hover {{
+            opacity: 0.9;
+        }}
 
         /* Navigation Bar */
         .category-nav-bar {{
@@ -1114,9 +1234,14 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
     <!-- Breaking News Ticker -->
     <div class="breaking-ticker-wrap">
         <div class="breaking-ticker">
-            <div class="ticker-label">SON DAKİKA</div>
-            <div class="ticker-marquee">
-                {ticker_items}
+            <div class="ticker-label">
+                <span class="ticker-pulse"></span>
+                <span>SON DAKİKA</span>
+            </div>
+            <div class="ticker-marquee" title="Akışı durdurmak için imleci üzerine getirebilirsiniz">
+                <div class="ticker-track" id="tickerTrack">
+                    {ticker_track_content}
+                </div>
             </div>
         </div>
     </div>
@@ -1498,6 +1623,65 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             }} else {{
                 updateThemeElements(current);
             }}
+        }})();
+
+        // Client-side auto-update: Polls feed.json every 90 seconds to check for new articles
+        (function initLiveFeedSync() {{
+            let knownTopTitle = (articlesData && articlesData.length > 0) ? articlesData[0].title_en : '';
+
+            function escapeHtml(str) {{
+                if (!str) return '';
+                const p = document.createElement('p');
+                p.textContent = str;
+                return p.innerHTML;
+            }}
+
+            async function checkLiveFeed() {{
+                try {{
+                    const res = await fetch('feed.json?_=' + Date.now(), {{ cache: 'no-store' }});
+                    if (!res.ok) return;
+                    const feed = await res.json();
+                    const items = feed.items || [];
+                    if (!items.length) return;
+
+                    const latest = items[0];
+                    const latestTitle = latest.title || latest.id || '';
+                    if (latestTitle && knownTopTitle && latestTitle !== knownTopTitle) {{
+                        console.log('[Canlı Akış] Yeni su haberleri tespit edildi, ticker güncelleniyor...');
+                        knownTopTitle = latestTitle;
+
+                        // Update continuous ticker track seamlessly
+                        const track = document.getElementById('tickerTrack');
+                        if (track) {{
+                            let trackHtml = '';
+                            items.slice(0, 15).forEach(item => {{
+                                const title = item.title || '';
+                                trackHtml += `<span class="ticker-item" onclick="window.location.reload()"><span class="ticker-icon">⚡</span> <span class="ticker-text">${{escapeHtml(title)}}</span> <span class="ticker-sep">&bull;</span></span>`;
+                            }});
+                            track.innerHTML = trackHtml + trackHtml;
+                        }}
+
+                        // Display floating notification
+                        let toast = document.getElementById('liveUpdateToast');
+                        if (!toast) {{
+                            toast = document.createElement('div');
+                            toast.id = 'liveUpdateToast';
+                            toast.className = 'live-update-toast';
+                            toast.innerHTML = `<span>🔔 <strong>Yeni Su Haberleri Yayınlandı!</strong> Portali güncellemek için tıklayın</span> <button onclick="window.location.reload()" class="btn-refresh-toast">Yenile ⟳</button>`;
+                            document.body.appendChild(toast);
+                        }}
+                        toast.style.display = 'flex';
+                    }}
+                }} catch (e) {{
+                    // Ignore transient network errors
+                }}
+            }}
+
+            // Start checking after 45 seconds, then every 90 seconds
+            setTimeout(() => {{
+                checkLiveFeed();
+                setInterval(checkLiveFeed, 90000);
+            }}, 45000);
         }})();
     </script>
 </body>

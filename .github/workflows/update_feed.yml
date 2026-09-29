@@ -2,15 +2,15 @@ name: Update RSS Feed & Deploy to GitHub Pages
 
 on:
   schedule:
-    # Her 30 dakikada bir otomatik çalışır
-    - cron: "*/30 * * * *"
+    # Her 30 dakikada bir otomatik çalışır (yoğunluğu önlemek için :13 ve :43 dakikalarında tetiklenir)
+    - cron: "13,43 * * * *"
   workflow_dispatch:
   push:
     branches:
       - main
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -49,6 +49,13 @@ jobs:
           PUBLIC_BASE_URL: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
         run: |
           python export_static.py
+
+      - name: Persist SQLite Database to Repository
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/feed_items.db
+          git diff --staged --quiet || (git commit -m "chore(data): auto-update feed items database [skip ci]" && git push origin main || true)
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
