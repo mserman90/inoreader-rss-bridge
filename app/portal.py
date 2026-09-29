@@ -336,17 +336,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             transform: translateY(-1px);
             opacity: 0.9;
         }}
-        .rss-badge-link {{
-            background: #e65100;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-weight: bold;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }}
+
 
         /* Newspaper Header / Masthead */
         .newspaper-header {{
@@ -503,42 +493,6 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             font-size: 14px;
         }}
 
-        /* Live Update Floating Toast */
-        .live-update-toast {{
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background: var(--top-bar-bg);
-            color: #ffffff;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-            display: none;
-            align-items: center;
-            gap: 16px;
-            z-index: 9999;
-            font-size: 13px;
-            border-left: 4px solid var(--accent-red);
-            animation: slideUpToast 0.4s ease-out;
-        }}
-        @keyframes slideUpToast {{
-            from {{ transform: translateY(80px); opacity: 0; }}
-            to {{ transform: translateY(0); opacity: 1; }}
-        }}
-        .btn-refresh-toast {{
-            background: var(--accent-red);
-            color: #ffffff;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 12px;
-            transition: opacity 0.2s ease;
-        }}
-        .btn-refresh-toast:hover {{
-            opacity: 0.9;
-        }}
 
         /* Navigation Bar */
         .category-nav-bar {{
@@ -1216,9 +1170,6 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
                 <button type="button" id="themeToggleBtnTop" class="theme-toggle-btn" onclick="toggleTheme()" title="Gece / Gündüz Temasını Değiştir" aria-label="Temayı Değiştir">
                     <span class="theme-icon">🌙</span> <span class="theme-text">Gece Modu</span>
                 </button>
-                <a href="{rss_url}" target="_blank" class="rss-badge-link">
-                    📡 Sabit RSS Yayını (XML)
-                </a>
             </div>
         </div>
     </div>
@@ -1661,16 +1612,6 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
                             track.innerHTML = trackHtml + trackHtml;
                         }}
 
-                        // Display floating notification
-                        let toast = document.getElementById('liveUpdateToast');
-                        if (!toast) {{
-                            toast = document.createElement('div');
-                            toast.id = 'liveUpdateToast';
-                            toast.className = 'live-update-toast';
-                            toast.innerHTML = `<span>🔔 <strong>Yeni Su Haberleri Yayınlandı!</strong> Portali güncellemek için tıklayın</span> <button onclick="window.location.reload()" class="btn-refresh-toast">Yenile ⟳</button>`;
-                            document.body.appendChild(toast);
-                        }}
-                        toast.style.display = 'flex';
                     }}
                 }} catch (e) {{
                     // Ignore transient network errors
