@@ -47,13 +47,14 @@ def main():
 
     # Persist translations and updated categories into SQLite
     for it in items:
-        new_cat = categorize_article(it["title"], it.get("description", ""))
-        it["category_tr"] = new_cat
+        title_tr = it.get("title_tr") or it["title"]
+        category_tr = it.get("category_tr") or categorize_article(title_tr + " " + it["title"], it.get("description", ""))
+        it["category_tr"] = category_tr
         storage.update_item_translation(
             it["guid"],
-            it.get("title_tr", it["title"]),
+            title_tr,
             it.get("summary_tr", ""),
-            new_cat
+            category_tr
         )
 
     public_url = config.PUBLIC_BASE_URL or "https://mserman90.github.io/suhaberportali"
@@ -62,12 +63,30 @@ def main():
     json_self = f"{public_url}/feed.json"
     now_str = datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M UTC")
 
-    # Format RSS items with Turkish titles & descriptions if available
+    # Format RSS items with 100% Turkish titles & rich Turkish descriptions
+    import html
     rss_items = []
     for it in items:
         r_item = dict(it)
-        if it.get("title_tr"):
-            r_item["title"] = f"[{it.get('category_tr', 'Su')}] {it['title_tr']}"
+        title_tr = it.get("title_tr") or it["title"]
+        category_tr = it.get("category_tr", "Su Kaynakları")
+        r_item["title"] = f"[{category_tr}] {title_tr}"
+
+        # Construct Turkish description for RSS / Atom feeds
+        desc_parts = []
+        if it.get("image_url"):
+            desc_parts.append(f'<p><img src="{html.escape(it["image_url"])}" alt="{html.escape(title_tr)}" style="max-width:100%; border-radius:6px;" /></p>')
+        if it.get("category_tr"):
+            desc_parts.append(f'<p><strong>Kategori:</strong> {html.escape(category_tr)}</p>')
+        if it.get("source_feed"):
+            desc_parts.append(f'<p><strong>Kaynak:</strong> {html.escape(it["source_feed"])}</p>')
+        if it.get("title") and it.get("title") != title_tr:
+            desc_parts.append(f'<p><strong>Orijinal Başlık:</strong> {html.escape(it["title"])}</p>')
+        if it.get("summary_tr"):
+            desc_parts.append(f'<p>{html.escape(it["summary_tr"])}</p>')
+        desc_parts.append(f'<p><a href="{html.escape(it["link"])}" target="_blank" rel="noopener noreferrer">Makalenin Tamamını Oku &rarr;</a></p>')
+
+        r_item["description"] = "\n".join(desc_parts)
         rss_items.append(r_item)
 
     # 1. Generate RSS 2.0

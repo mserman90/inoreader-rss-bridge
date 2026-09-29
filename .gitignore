@@ -4,8 +4,8 @@ __pycache__/
 *$py.class
 
 # Local environment & data
-data/
-*.db
+data/*
+!data/feed_items.db
 *.sqlite
 *.sqlite3
 .env

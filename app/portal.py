@@ -100,7 +100,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
                     {html.escape(it['title_tr'])}
                 </h3>
                 <h5 class="card-title-en">
-                    Original: {html.escape(it['title_en'])}
+                    Orijinal Başlık: {html.escape(it['title_en'])}
                 </h5>
                 <p class="card-excerpt">
                     {html.escape(it['summary_tr'][:180])}...
@@ -135,7 +135,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
                     <span>🏛️ {html.escape(h['source'][:40])}</span>
                 </div>
                 <h2 class="hero-title">{html.escape(h['title_tr'])}</h2>
-                <h4 class="hero-title-en">Original: {html.escape(h['title_en'])}</h4>
+                <h4 class="hero-title-en">Orijinal Başlık: {html.escape(h['title_en'])}</h4>
                 <p class="hero-summary">{html.escape(h['summary_tr'][:320])}...</p>
                 <div class="hero-footer">
                     <button class="btn-hero-read">Tam Haberi ve Analizi Oku &rarr;</button>
@@ -1296,7 +1296,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             document.getElementById('modalBadge').innerText = it.category;
             document.getElementById('modalHeaderCategory').innerText = it.category.toUpperCase() + ' &bull; SU HABER BÜLTENİ';
             document.getElementById('modalTitleTr').innerText = it.title_tr;
-            document.getElementById('modalTitleEn').innerText = 'Orijinal: ' + it.title_en;
+            document.getElementById('modalTitleEn').innerText = 'Orijinal Başlık: ' + it.title_en;
             document.getElementById('modalDate').innerText = '📅 ' + it.date;
             document.getElementById('modalSource').innerText = '🏛️ ' + it.source;
             document.getElementById('modalAuthor').innerText = it.author ? '✍️ ' + it.author : '✍️ Akademik Kurul';
