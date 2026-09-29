@@ -163,6 +163,19 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&family=Public+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,800;0,900;1,400;1,700&display=swap" rel="stylesheet">
 
+    <!-- Theme Detection Script (Prevents flash of light theme on load) -->
+    <script>
+        (function() {{
+            const saved = localStorage.getItem('su_portal_theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (saved === 'dark' || (!saved && prefersDark)) {{
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }} else {{
+                document.documentElement.setAttribute('data-theme', 'light');
+            }}
+        }})();
+    </script>
+
     <style>
         :root {{
             --paper-bg: #fdfdfc;
@@ -171,12 +184,91 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             --ink-dark: #1f2937;
             --ink-muted: #4b5563;
             --ink-light: #6b7280;
+            --logo-color: #0b2545;
+            --sublogo-color: #134074;
             --newspaper-navy: #0b2545;
             --newspaper-blue: #134074;
             --accent-red: #c1121f;
             --border-line: #d1d5db;
             --border-light: #e5e7eb;
+            --border-divider: #111827;
             --border-double: 3px double #111827;
+            --top-bar-bg: #0b1a30;
+            --top-bar-color: #d1d5db;
+            --ticker-bg: #ffffff;
+            --nav-bg: #ffffff;
+            --cat-btn-bg: #f1f5f9;
+            --cat-btn-border: #cbd5e1;
+            --cat-btn-color: #1f2937;
+            --cat-btn-hover: #e2e8f0;
+            --cat-btn-active-bg: #0b2545;
+            --cat-btn-active-color: #ffffff;
+            --search-bg: #ffffff;
+            --search-border: #d1d5db;
+            --search-color: #111827;
+            --sidebar-card-bg: #ffffff;
+            --sidebar-quote-bg: #f8fafc;
+            --rss-box-bg: #f0fdf4;
+            --rss-box-border: #bbf7d0;
+            --modal-bg: #ffffff;
+            --modal-header-bg: #f8fafc;
+            --modal-text: #262626;
+            --modal-footer-bg: #f8fafc;
+            --footer-bg: #0b1a30;
+            --footer-border: #0b2545;
+            --footer-text: #9ca3af;
+            --theme-toggle-bg: rgba(255, 255, 255, 0.12);
+            --theme-toggle-color: #f1f5f9;
+            --theme-toggle-border: rgba(255, 255, 255, 0.25);
+            --shadow-subtle: 0 2px 6px rgba(0,0,0,0.03);
+            --shadow-hover: 0 8px 18px rgba(0,0,0,0.07);
+        }}
+
+        [data-theme="dark"] {{
+            --paper-bg: #0a0f1d;
+            --paper-card: #131b2e;
+            --ink-black: #f8fafc;
+            --ink-dark: #e2e8f0;
+            --ink-muted: #94a3b8;
+            --ink-light: #64748b;
+            --logo-color: #f8fafc;
+            --sublogo-color: #38bdf8;
+            --newspaper-navy: #38bdf8;
+            --newspaper-blue: #60a5fa;
+            --accent-red: #ef4444;
+            --border-line: #1e293b;
+            --border-light: #182235;
+            --border-divider: #38bdf8;
+            --border-double: 3px double #38bdf8;
+            --top-bar-bg: #050811;
+            --top-bar-color: #94a3b8;
+            --ticker-bg: #131b2e;
+            --nav-bg: #131b2e;
+            --cat-btn-bg: #1a253a;
+            --cat-btn-border: #293954;
+            --cat-btn-color: #e2e8f0;
+            --cat-btn-hover: #23324d;
+            --cat-btn-active-bg: #2563eb;
+            --cat-btn-active-color: #ffffff;
+            --search-bg: #0b1120;
+            --search-border: #293954;
+            --search-color: #f8fafc;
+            --sidebar-card-bg: #131b2e;
+            --sidebar-quote-bg: #0e1626;
+            --rss-box-bg: #062817;
+            --rss-box-border: #14532d;
+            --modal-bg: #131b2e;
+            --modal-header-bg: #0e1626;
+            --modal-text: #e2e8f0;
+            --modal-footer-bg: #0e1626;
+            --footer-bg: #050811;
+            --footer-border: #1e293b;
+            --footer-text: #64748b;
+            --theme-toggle-bg: rgba(255, 255, 255, 0.15);
+            --theme-toggle-color: #f8fafc;
+            --theme-toggle-border: rgba(255, 255, 255, 0.25);
+            --shadow-subtle: 0 2px 6px rgba(0,0,0,0.3);
+            --shadow-hover: 0 8px 20px rgba(0,0,0,0.5);
         }}
 
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -185,15 +277,17 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             color: var(--ink-black);
             font-family: 'Public Sans', -apple-system, sans-serif;
             line-height: 1.6;
+            transition: background-color 0.25s ease, color 0.25s ease;
         }}
 
         /* Top Info Bar */
         .top-masthead-bar {{
-            background: #0b1a30;
-            color: #d1d5db;
+            background: var(--top-bar-bg);
+            color: var(--top-bar-color);
             font-size: 12px;
             padding: 7px 16px;
-            border-bottom: 1px solid #1f2937;
+            border-bottom: 1px solid var(--border-line);
+            transition: background-color 0.25s ease;
         }}
         .top-bar-inner {{
             max-width: 1240px;
@@ -204,7 +298,31 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             flex-wrap: wrap;
             gap: 8px;
         }}
-        .top-bar-left span, .top-bar-right span {{ margin-right: 14px; }}
+        .top-bar-left span {{ margin-right: 14px; }}
+        .top-bar-right {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .theme-toggle-btn {{
+            background: var(--theme-toggle-bg);
+            color: var(--theme-toggle-color);
+            border: 1px solid var(--theme-toggle-border);
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+            user-select: none;
+        }}
+        .theme-toggle-btn:hover {{
+            transform: translateY(-1px);
+            opacity: 0.9;
+        }}
         .rss-badge-link {{
             background: #e65100;
             color: white;
@@ -238,23 +356,26 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             font-weight: 900;
             letter-spacing: 3px;
             text-transform: uppercase;
-            color: var(--newspaper-navy);
+            color: var(--logo-color);
             margin: 4px 0;
             line-height: 1.1;
+            transition: color 0.25s ease;
         }}
         .newspaper-sub-logo {{
             font-size: 13px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 2px;
-            color: var(--newspaper-blue);
+            color: var(--sublogo-color);
             margin-bottom: 16px;
+            transition: color 0.25s ease;
         }}
         .masthead-divider {{
-            border-top: 1px solid var(--ink-black);
-            border-bottom: 3px solid var(--ink-black);
+            border-top: 1px solid var(--border-divider);
+            border-bottom: 3px solid var(--border-divider);
             height: 4px;
             margin: 12px 0 16px;
+            transition: border-color 0.25s ease;
         }}
 
         /* Breaking News Ticker */
@@ -266,12 +387,13 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         .breaking-ticker {{
             display: flex;
             align-items: center;
-            background: #fff;
+            background: var(--ticker-bg);
             border: 1px solid var(--border-line);
             border-left: 5px solid var(--accent-red);
             border-radius: 4px;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            box-shadow: var(--shadow-subtle);
+            transition: background-color 0.25s ease, border-color 0.25s ease;
         }}
         .ticker-label {{
             background: var(--accent-red);
@@ -305,7 +427,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             padding: 0 16px;
         }}
         .nav-inner {{
-            background: white;
+            background: var(--nav-bg);
             border: 1px solid var(--border-line);
             border-radius: 6px;
             padding: 8px 16px;
@@ -314,6 +436,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             justify-content: space-between;
             gap: 16px;
             flex-wrap: wrap;
+            transition: background-color 0.25s ease, border-color 0.25s ease;
         }}
         .category-pills {{
             display: flex;
@@ -321,31 +444,30 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             flex-wrap: wrap;
         }}
         .cat-btn {{
-            background: #f1f5f9;
-            border: 1px solid #cbd5e1;
+            background: var(--cat-btn-bg);
+            border: 1px solid var(--cat-btn-border);
             padding: 7px 14px;
             border-radius: 20px;
             font-size: 13px;
             font-weight: 600;
-            color: var(--ink-dark);
+            color: var(--cat-btn-color);
             cursor: pointer;
             transition: all 0.2s ease;
             user-select: none;
         }}
         .cat-btn:hover {{
-            background: #e2e8f0;
-            border-color: #94a3b8;
+            background: var(--cat-btn-hover);
             transform: translateY(-1px);
         }}
         .cat-btn.active {{
-            background: var(--newspaper-navy) !important;
-            color: white !important;
-            border-color: var(--newspaper-navy) !important;
+            background: var(--cat-btn-active-bg) !important;
+            color: var(--cat-btn-active-color) !important;
+            border-color: var(--cat-btn-active-bg) !important;
             box-shadow: 0 2px 8px rgba(11, 37, 69, 0.3);
         }}
         .empty-results-box {{
             grid-column: 1 / -1;
-            background: #ffffff;
+            background: var(--paper-card);
             border: 2px dashed var(--border-line);
             border-radius: 8px;
             padding: 48px 24px;
@@ -397,6 +519,11 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         .hero-category-tag:hover {{
             opacity: 0.85;
         }}
+        .nav-controls {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
         .search-box {{
             display: flex;
             align-items: center;
@@ -404,10 +531,36 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         }}
         .search-box input {{
             padding: 6px 12px;
-            border: 1px solid var(--border-line);
+            background: var(--search-bg);
+            color: var(--search-color);
+            border: 1px solid var(--search-border);
             border-radius: 4px;
             font-size: 13px;
-            width: 220px;
+            width: 200px;
+            transition: all 0.2s ease;
+        }}
+        .search-box input:focus {{
+            outline: none;
+            border-color: var(--newspaper-blue);
+        }}
+        .theme-toggle-btn-nav {{
+            background: var(--cat-btn-bg);
+            color: var(--ink-dark);
+            border: 1px solid var(--cat-btn-border);
+            padding: 6px 11px;
+            border-radius: 6px;
+            font-size: 15px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            user-select: none;
+            line-height: 1;
+        }}
+        .theme-toggle-btn-nav:hover {{
+            background: var(--cat-btn-hover);
+            transform: translateY(-1px);
         }}
 
         /* Main Container */
@@ -421,18 +574,18 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         .main-headline-banner {{
             display: grid;
             grid-template-columns: 1.15fr 1fr;
-            background: white;
+            background: var(--paper-card);
             border: 1px solid var(--border-line);
             border-radius: 8px;
             overflow: hidden;
             margin-bottom: 28px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow-subtle);
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.25s ease, border-color 0.25s ease;
         }}
         .main-headline-banner:hover {{
             transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.09);
+            box-shadow: var(--shadow-hover);
         }}
         .hero-image-col {{
             background-size: cover;
@@ -520,18 +673,18 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             margin-bottom: 36px;
         }}
         .sub-headline-card {{
-            background: white;
+            background: var(--paper-card);
             border: 1px solid var(--border-line);
             border-radius: 6px;
             overflow: hidden;
             display: flex;
             cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+            transition: all 0.2s, background-color 0.25s ease, border-color 0.25s ease;
+            box-shadow: var(--shadow-subtle);
         }}
         .sub-headline-card:hover {{
             transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+            box-shadow: var(--shadow-hover);
         }}
         .sub-headline-img {{
             width: 140px;
@@ -614,18 +767,18 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             margin-bottom: 30px;
         }}
         .news-grid-card {{
-            background: white;
+            background: var(--paper-card);
             border: 1px solid var(--border-line);
             border-radius: 6px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-            transition: all 0.2s;
+            box-shadow: var(--shadow-subtle);
+            transition: all 0.2s, background-color 0.25s ease, border-color 0.25s ease;
         }}
         .news-grid-card:hover {{
             transform: translateY(-2px);
-            box-shadow: 0 8px 18px rgba(0,0,0,0.07);
+            box-shadow: var(--shadow-hover);
         }}
         .card-img-wrap {{
             height: 170px;
@@ -700,12 +853,13 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
 
         /* Sidebar Cards */
         .sidebar-card {{
-            background: white;
+            background: var(--sidebar-card-bg);
             border: 1px solid var(--border-line);
             border-radius: 6px;
             padding: 20px;
             margin-bottom: 24px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+            box-shadow: var(--shadow-subtle);
+            transition: background-color 0.25s ease, border-color 0.25s ease;
         }}
         .sidebar-title {{
             font-family: 'Playfair Display', serif;
@@ -721,7 +875,9 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             font-style: italic;
             color: var(--ink-dark);
             border-left: 3px solid var(--newspaper-navy);
-            padding-left: 12px;
+            background: var(--sidebar-quote-bg);
+            padding: 12px 14px;
+            border-radius: 4px;
             margin-bottom: 12px;
             line-height: 1.6;
         }}
@@ -740,6 +896,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             padding: 10px 0;
             border-bottom: 1px solid var(--border-light);
             font-size: 13px;
+            color: var(--ink-dark);
         }}
         .stat-value {{
             font-weight: 800;
@@ -749,15 +906,16 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
 
         /* RSS box in sidebar */
         .sidebar-rss-box {{
-            background: #f0fdf4;
-            border: 1px solid #bbf7d0;
+            background: var(--rss-box-bg);
+            border: 1px solid var(--rss-box-border);
             border-radius: 6px;
             padding: 16px;
             text-align: center;
         }}
         .rss-url-display {{
-            background: white;
-            border: 1px solid #86efac;
+            background: var(--paper-card);
+            border: 1px solid var(--rss-box-border);
+            color: var(--ink-dark);
             padding: 6px 10px;
             font-family: monospace;
             font-size: 11px;
@@ -785,7 +943,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(11, 26, 48, 0.7);
+            background: rgba(11, 26, 48, 0.75);
             backdrop-filter: blur(4px);
             display: none;
             justify-content: center;
@@ -794,20 +952,21 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             padding: 20px;
         }}
         .modal-window {{
-            background: #ffffff;
+            background: var(--modal-bg);
             width: 100%;
             max-width: 820px;
             max-height: 90vh;
             border-radius: 8px;
             overflow-y: auto;
             border: 1px solid var(--border-line);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.35);
             display: flex;
             flex-direction: column;
+            transition: background-color 0.25s ease;
         }}
         .modal-header {{
             padding: 16px 24px;
-            background: #f8fafc;
+            background: var(--modal-header-bg);
             border-bottom: 1px solid var(--border-line);
             display: flex;
             justify-content: space-between;
@@ -870,14 +1029,14 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         .modal-text {{
             font-family: 'Merriweather', serif;
             font-size: 15.5px;
-            color: #262626;
+            color: var(--modal-text);
             line-height: 1.8;
             margin-bottom: 30px;
         }}
         .modal-footer {{
             border-top: 1px solid var(--border-line);
             padding: 16px 24px;
-            background: #f8fafc;
+            background: var(--modal-footer-bg);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -895,11 +1054,12 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
 
         /* Footer */
         .newspaper-footer {{
-            border-top: 3px solid var(--newspaper-navy);
-            background: #0b1a30;
-            color: #9ca3af;
+            border-top: 3px solid var(--footer-border);
+            background: var(--footer-bg);
+            color: var(--footer-text);
             padding: 40px 16px;
             margin-top: 60px;
+            transition: background-color 0.25s ease;
         }}
         .footer-inner {{
             max-width: 1240px;
@@ -909,7 +1069,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         }}
         .footer-inner h4 {{
             font-family: 'Playfair Display', serif;
-            color: white;
+            color: var(--ink-black);
             font-size: 1.4rem;
             margin-bottom: 8px;
         }}
@@ -933,6 +1093,9 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
                 <span>📰 Günlük Bilimsel Bülten</span>
             </div>
             <div class="top-bar-right">
+                <button type="button" id="themeToggleBtnTop" class="theme-toggle-btn" onclick="toggleTheme()" title="Gece / Gündüz Temasını Değiştir" aria-label="Temayı Değiştir">
+                    <span class="theme-icon">🌙</span> <span class="theme-text">Gece Modu</span>
+                </button>
                 <a href="{rss_url}" target="_blank" class="rss-badge-link">
                     📡 Sabit RSS Yayını (XML)
                 </a>
@@ -969,8 +1132,13 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
                 <button type="button" class="cat-btn" data-slug="iklim" onclick="filterCategory('iklim')">🌍 İklim &amp; Kuraklık</button>
                 <button type="button" class="cat-btn" data-slug="politika" onclick="filterCategory('politika')">⚖️ Su Politikaları</button>
             </div>
-            <div class="search-box">
-                <input type="text" id="searchInput" placeholder="🔍 Başlıklarda ara..." oninput="filterSearch()">
+            <div class="nav-controls">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="🔍 Başlıklarda ara..." oninput="filterSearch()">
+                </div>
+                <button type="button" id="themeToggleBtnNav" class="theme-toggle-btn-nav" onclick="toggleTheme()" title="Gece / Gündüz Temasını Değiştir" aria-label="Temayı Değiştir">
+                    <span class="theme-icon">🌙</span>
+                </button>
             </div>
         </div>
     </nav>
@@ -1294,6 +1462,43 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
                 if (noResultsEl) noResultsEl.style.display = 'none';
             }}
         }}
+
+        function updateThemeElements(theme) {{
+            const isDark = (theme === 'dark');
+            const icon = isDark ? '☀️' : '🌙';
+            const labelText = isDark ? 'Gündüz Modu' : 'Gece Modu';
+            const tooltip = isDark ? 'Gündüz Moduna Geç' : 'Gece Moduna Geç';
+
+            const btnTop = document.getElementById('themeToggleBtnTop');
+            if (btnTop) {{
+                btnTop.innerHTML = `<span class="theme-icon">${{icon}}</span> <span class="theme-text">${{labelText}}</span>`;
+                btnTop.title = tooltip;
+            }}
+
+            const btnNav = document.getElementById('themeToggleBtnNav');
+            if (btnNav) {{
+                btnNav.innerHTML = `<span class="theme-icon">${{icon}}</span>`;
+                btnNav.title = tooltip;
+            }}
+        }}
+
+        function toggleTheme() {{
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const next = (current === 'dark') ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('su_portal_theme', next);
+            updateThemeElements(next);
+        }}
+
+        // Initialize theme button state as soon as DOM is ready
+        (function initThemeUI() {{
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            if (document.readyState === 'loading') {{
+                document.addEventListener('DOMContentLoaded', () => updateThemeElements(current));
+            }} else {{
+                updateThemeElements(current);
+            }}
+        }})();
     </script>
 </body>
 </html>"""
