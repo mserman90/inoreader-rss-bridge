@@ -314,7 +314,30 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             flex-wrap: wrap;
             gap: 8px;
         }}
-        .top-bar-left span {{ margin-right: 14px; }}
+        .top-bar-left span, .top-bar-left a {{ margin-right: 14px; }}
+        .top-stat-link {{
+            color: var(--top-bar-color);
+            text-decoration: none;
+            border-bottom: 1px dotted rgba(255, 255, 255, 0.4);
+            padding-bottom: 1px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s ease;
+        }}
+        .top-stat-link:hover {{
+            color: #38bdf8;
+            border-bottom: 1px solid #38bdf8;
+        }}
+        .ext-link-icon {{
+            font-size: 10px;
+            opacity: 0.75;
+            transition: transform 0.15s ease;
+        }}
+        .top-stat-link:hover .ext-link-icon {{
+            transform: translate(1px, -1px);
+            opacity: 1;
+        }}
         .top-bar-right {{
             display: flex;
             align-items: center;
@@ -395,42 +418,13 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             align-items: center;
             background: var(--ticker-bg);
             border: 1px solid var(--border-line);
-            border-left: 5px solid var(--accent-red);
+            border-left: 4px solid var(--newspaper-blue);
             border-radius: 6px;
             overflow: hidden;
             box-shadow: var(--shadow-subtle);
             height: 42px;
             position: relative;
             transition: background-color 0.25s ease, border-color 0.25s ease;
-        }}
-        .ticker-label {{
-            background: var(--accent-red);
-            color: #ffffff;
-            font-weight: 800;
-            font-size: 11px;
-            padding: 0 14px;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            letter-spacing: 1.2px;
-            white-space: nowrap;
-            z-index: 5;
-            flex-shrink: 0;
-            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.12);
-        }}
-        .ticker-pulse {{
-            display: inline-block;
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: #ffffff;
-            animation: tickerPulse 1.6s ease-in-out infinite;
-        }}
-        @keyframes tickerPulse {{
-            0% {{ transform: scale(0.9); opacity: 0.6; }}
-            50% {{ transform: scale(1.3); opacity: 1; }}
-            100% {{ transform: scale(0.9); opacity: 0.6; }}
         }}
         .ticker-marquee {{
             flex: 1;
@@ -440,6 +434,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             height: 100%;
             display: flex;
             align-items: center;
+            padding-left: 14px;
             mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 24px), transparent);
             -webkit-mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 24px), transparent);
         }}
@@ -1166,8 +1161,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         <div class="top-bar-inner">
             <div class="top-bar-left">
                 <span>🗓️ {today_str}</span>
-                <span>💧 Türkiye Su Stresi: %64.2</span>
-                <span>📰 Günlük Bilimsel Bülten</span>
+                <a href="https://www.wri.org/applications/aqueduct/water-risk-atlas/" target="_blank" rel="noopener noreferrer" class="top-stat-link" title="Hesaplama Kaynağı: WRI (World Resources Institute) Aqueduct Su Riski ve Stresi Atlası">💧 Türkiye Su Stresi: %64.2 <span class="ext-link-icon">↗</span></a>
             </div>
             <div class="top-bar-right">
                 <button type="button" id="themeToggleBtnTop" class="theme-toggle-btn" onclick="toggleTheme()" title="Gece / Gündüz Temasını Değiştir" aria-label="Temayı Değiştir">
@@ -1188,10 +1182,6 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
     <!-- Breaking News Ticker -->
     <div class="breaking-ticker-wrap">
         <div class="breaking-ticker">
-            <div class="ticker-label">
-                <span class="ticker-pulse"></span>
-                <span>SON DAKİKA</span>
-            </div>
             <div class="ticker-marquee" title="Akışı durdurmak için imleci üzerine getirebilirsiniz">
                 <div class="ticker-track" id="tickerTrack">
                     {ticker_track_content}
