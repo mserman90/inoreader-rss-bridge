@@ -50,13 +50,6 @@ jobs:
         run: |
           python export_static.py
 
-      - name: Persist SQLite Database to Repository
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add data/feed_items.db
-          git diff --staged --quiet || (git commit -m "chore(data): auto-update feed items database [skip ci]" && git push origin main || true)
-
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
