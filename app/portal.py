@@ -1337,7 +1337,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             <div class="modal-footer">
                 <button class="cat-btn" onclick="window.print()">🖨️ Sayfayı Yazdır</button>
                 <a href="#" id="modalDoiLink" target="_blank" rel="noopener noreferrer" class="btn-doi-link">
-                    Orijinal Akademik Makaleyi Aç (DOI) &rarr;
+                    Kaynağı Aç
                 </a>
             </div>
         </div>
