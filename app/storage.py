@@ -30,9 +30,18 @@ class Storage:
                     pub_date TEXT NOT NULL,
                     pub_date_ts INTEGER NOT NULL,
                     first_seen_ts INTEGER NOT NULL,
-                    raw_date_str TEXT
+                    raw_date_str TEXT,
+                    title_tr TEXT,
+                    summary_tr TEXT,
+                    category_tr TEXT
                 )
             """)
+            for col in ["title_tr", "summary_tr", "category_tr"]:
+                try:
+                    cursor.execute(f"ALTER TABLE items ADD COLUMN {col} TEXT")
+                except sqlite3.OperationalError:
+                    pass
+
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS sync_meta (
                     key TEXT PRIMARY KEY,
@@ -55,11 +64,17 @@ class Storage:
             cursor = conn.cursor()
             for it in items:
                 guid = it["guid"]
-                cursor.execute("SELECT guid, pub_date, pub_date_ts, first_seen_ts FROM items WHERE guid = ?", (guid,))
+                cursor.execute(
+                    "SELECT guid, pub_date, pub_date_ts, first_seen_ts, title_tr, summary_tr, category_tr FROM items WHERE guid = ?",
+                    (guid,)
+                )
                 existing = cursor.fetchone()
 
+                title_tr = it.get("title_tr") or (existing["title_tr"] if existing else None)
+                summary_tr = it.get("summary_tr") or (existing["summary_tr"] if existing else None)
+                category_tr = it.get("category_tr") or (existing["category_tr"] if existing else None)
+
                 if existing:
-                    # Keep original timestamp
                     cursor.execute("""
                         UPDATE items SET
                             title = ?,
@@ -68,7 +83,10 @@ class Storage:
                             source_feed = ?,
                             description = ?,
                             image_url = ?,
-                            raw_date_str = ?
+                            raw_date_str = ?,
+                            title_tr = ?,
+                            summary_tr = ?,
+                            category_tr = ?
                         WHERE guid = ?
                     """, (
                         it["title"],
@@ -78,6 +96,9 @@ class Storage:
                         it.get("description", ""),
                         it.get("image_url", ""),
                         it.get("raw_date_str", ""),
+                        title_tr,
+                        summary_tr,
+                        category_tr,
                         guid
                     ))
                 else:
@@ -92,8 +113,9 @@ class Storage:
                         INSERT INTO items (
                             guid, title, link, author, source_feed,
                             description, image_url, pub_date, pub_date_ts,
-                            first_seen_ts, raw_date_str
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            first_seen_ts, raw_date_str,
+                            title_tr, summary_tr, category_tr
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         guid,
                         it["title"],
@@ -105,12 +127,27 @@ class Storage:
                         pub_date_rfc,
                         pub_ts,
                         now_ts,
-                        it.get("raw_date_str", "")
+                        it.get("raw_date_str", ""),
+                        title_tr,
+                        summary_tr,
+                        category_tr
                     ))
 
             conn.commit()
 
         return new_count
+
+    def update_item_translation(self, guid: str, title_tr: str, summary_tr: str, category_tr: str):
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE items SET
+                    title_tr = ?,
+                    summary_tr = ?,
+                    category_tr = ?
+                WHERE guid = ?
+            """, (title_tr, summary_tr, category_tr, guid))
+            conn.commit()
 
     def get_items(self, limit: int = 100) -> List[Dict[str, Any]]:
         with self._get_connection() as conn:
@@ -118,7 +155,8 @@ class Storage:
             cursor.execute("""
                 SELECT guid, title, link, author, source_feed,
                        description, image_url, pub_date, pub_date_ts,
-                       first_seen_ts, raw_date_str
+                       first_seen_ts, raw_date_str,
+                       title_tr, summary_tr, category_tr
                 FROM items
                 ORDER BY pub_date_ts DESC, first_seen_ts DESC
                 LIMIT ?
