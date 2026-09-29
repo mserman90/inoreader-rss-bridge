@@ -44,22 +44,33 @@ def translate_to_turkish(text: str) -> str:
 
 def categorize_article(title: str, text: str = "") -> str:
     """
-    Assigns a Turkish category based on water terminology keywords.
+    Assigns a Turkish category based on water terminology keywords with regex word boundaries.
     """
-    combined = (title + " " + text).lower()
+    combined = (title + " " + (text or "")).lower()
+    t_lower = (title or "").lower()
 
-    if any(k in combined for k in ["irrigation", "drip", "sprinkler", "crop", "alfalfa", "maize", "agriculture", "farm", "sulama", "tarım"]):
+    # 1. Tarımsal Sulama
+    if re.search(r'\b(irrigat\w*|drip|sprinkler|crop\w*|alfalfa|maize|agri\w*|farm\w*|sulama|tar[ıi]m)\b', t_lower) or \
+       re.search(r'\b(irrigat\w*|drip|sprinkler|crop\w*|alfalfa|maize|agri\w*|farm\w*|sulama|tar[ıi]m)\b', combined):
         return "Tarımsal Sulama"
-    elif any(k in combined for k in ["leakage", "pipe", "sensor", "cnn", "lstm", "ai", "model", "algorithm", "digital", "forecast", "xai", "tespit", "yapay zeka"]):
-        return "Su Teknolojileri"
-    elif any(k in combined for k in ["quality", "treatment", "contamin", "pollut", "wastewater", "reuse", "arıtma", "kalite"]):
-        return "Su Arıtma & Kalite"
-    elif any(k in combined for k in ["drought", "climate", "scarcity", "cmip6", "precipitation", "temperature", "kuraklık", "iklim"]):
+
+    # 2. İklim & Kuraklık
+    if re.search(r'\b(drought\w*|climate|scarcity|cmip\d*|precipitat\w*|flood\w*|rainfall|kurakl[ıi]k|iklim|sel|ta[şs]k[ıi]n)\b', t_lower) or \
+       re.search(r'\b(drought\w*|climate|scarcity|cmip\d*|precipitat\w*|flood\w*|rainfall|kurakl[ıi]k|iklim|sel|ta[şs]k[ıi]n)\b', combined):
         return "İklim & Kuraklık"
-    elif any(k in combined for k in ["governance", "policy", "gender", "law", "sdg", "institution", "yönetim", "politika"]):
+
+    # 3. Su Politikaları
+    if re.search(r'\b(govern\w*|polic\w*|gender|rights|law|sdg\w*|institut\w*|y[öo]neti[şs]im|politika|haklar|mevzuat)\b', t_lower) or \
+       re.search(r'\b(govern\w*|polic\w*|gender|rights|law|sdg\w*|institut\w*|y[öo]neti[şs]im|politika|haklar|mevzuat)\b', combined):
         return "Su Politikaları"
-    else:
-        return "Su Kaynakları"
+
+    # 4. Su Teknolojileri (and Arıtma / Kalite)
+    if re.search(r'\b(leak\w*|pipe\w*|sensor\w*|cnn|lstm|algorithm\w*|digital\w*|forecast\w*|xai|tespit|yapay zeka|tech\w*|smart|treat\w*|contamin\w*|pollut\w*|wastewater|reuse|ar[ıi]tma)\b', t_lower) or \
+       re.search(r'\b(leak\w*|pipe\w*|sensor\w*|cnn|lstm|algorithm\w*|digital\w*|forecast\w*|xai|tespit|yapay zeka|tech\w*|smart|treat\w*|contamin\w*|pollut\w*|wastewater|reuse|ar[ıi]tma)\b', combined):
+        return "Su Teknolojileri"
+
+    # 5. Su Kaynakları (fallback)
+    return "Su Kaynakları"
 
 def batch_translate_articles(items: List[Dict]) -> List[Dict]:
     """

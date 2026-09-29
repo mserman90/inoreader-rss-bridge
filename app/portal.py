@@ -29,6 +29,15 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=800&q=80", # Irrigation canal
     ]
 
+    CATEGORY_SLUGS = {
+        "Tarımsal Sulama": "sulama",
+        "Su Teknolojileri": "teknoloji",
+        "Su Arıtma & Kalite": "teknoloji",
+        "Su Kaynakları": "kaynak",
+        "İklim & Kuraklık": "iklim",
+        "Su Politikaları": "politika",
+    }
+
     # JSON payload for modal dialogs
     import json
     portal_data = []
@@ -38,12 +47,14 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         summary_tr = it.get("summary_tr") or clean_html_tags(it.get("description", ""))
         category = it.get("category_tr") or "Su Kaynakları"
         source = it.get("source_feed") or it.get("author") or "Bilimsel Araştırma"
+        slug = CATEGORY_SLUGS.get(category, "kaynak")
         portal_data.append({
             "id": idx,
             "title_tr": title_tr,
-            "title_en": it.get("title"),
+            "title_en": it.get("title", ""),
             "summary_tr": summary_tr,
             "category": category,
+            "slug": slug,
             "source": source,
             "author": it.get("author", ""),
             "date": it.get("pub_date", ""),
@@ -57,9 +68,9 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
     secondary_html = ""
     for it in portal_data[1:4]:
         secondary_html += f"""
-        <div class="sub-headline-card" onclick="openArticleModal({it['id']})">
+        <div class="sub-headline-card" onclick="openArticleModal({it['id']})" data-slug="{it['slug']}">
             <div class="sub-headline-img" style="background-image: url('{html.escape(it['image'])}');">
-                <span class="news-badge">{html.escape(it['category'])}</span>
+                <span class="news-badge" onclick="event.stopPropagation(); filterCategory('{it['slug']}')">{html.escape(it['category'])}</span>
             </div>
             <div class="sub-headline-content">
                 <span class="news-date">📅 {html.escape(it['date'][:16] if it.get('date') else today_str)}</span>
@@ -69,13 +80,16 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         </div>
         """
 
-    # Grid article cards
+    # Grid article cards (renders all items; items 0-3 hidden in 'all' view since displayed in hero/subheadlines)
     grid_html = ""
-    for it in portal_data[4:]:
+    for it in portal_data:
+        is_top = it['id'] < 4
+        display_style = ' style="display: none;"' if is_top else ''
+        search_corpus = clean_html_tags(f"{it['title_tr']} {it['title_en']} {it['summary_tr']} {it['category']}").lower()
         grid_html += f"""
-        <article class="news-grid-card" data-category="{html.escape(it['category'])}" data-title="{html.escape(it['title_tr'].lower())} {html.escape(it['title_en'].lower())}">
+        <article class="news-grid-card" data-slug="{it['slug']}" data-category="{html.escape(it['category'])}" data-is-top="{'true' if is_top else 'false'}" data-search="{html.escape(search_corpus)}"{display_style}>
             <div class="card-img-wrap" style="background-image: url('{html.escape(it['image'])}');" onclick="openArticleModal({it['id']})">
-                <span class="news-badge">{html.escape(it['category'])}</span>
+                <span class="news-badge" onclick="event.stopPropagation(); filterCategory('{it['slug']}')">{html.escape(it['category'])}</span>
             </div>
             <div class="card-body">
                 <div class="card-meta">
@@ -109,23 +123,23 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
     if portal_data:
         h = portal_data[0]
         hero_html = f"""
-        <section class="main-headline-banner" onclick="openArticleModal(0)">
+        <section class="main-headline-banner" id="heroSection" onclick="openArticleModal(0)" data-slug="{h['slug']}">
             <div class="hero-image-col" style="background-image: url('{html.escape(h['image'])}');">
                 <div class="hero-image-overlay">
-                    <span class="hero-category-tag">⭐ GÜNÜN MANŞETİ &bull; {html.escape(h['category'])}</span>
+                    <span class="hero-category-tag" onclick="event.stopPropagation(); filterCategory('{h['slug']}')">⭐ GÜNÜN MANŞETİ &bull; {html.escape(h['category'])}</span>
                 </div>
             </div>
             <div class="hero-content-col">
                 <div class="hero-meta">
-                    <span>📅 {html.escape(h['date'])}</span> &bull; 
-                    <span>🏛️ {html.escape(h['source'])}</span>
+                    <span>📅 {html.escape(h['date'][:16] if h.get('date') else today_str)}</span> &bull; 
+                    <span>🏛️ {html.escape(h['source'][:40])}</span>
                 </div>
                 <h2 class="hero-title">{html.escape(h['title_tr'])}</h2>
                 <h4 class="hero-title-en">Original: {html.escape(h['title_en'])}</h4>
                 <p class="hero-summary">{html.escape(h['summary_tr'][:320])}...</p>
                 <div class="hero-footer">
                     <button class="btn-hero-read">Tam Haberi ve Analizi Oku &rarr;</button>
-                    <span class="hero-hint">ScienceDirect / ASCE Akademik Veritabanı Kaynağı</span>
+                    <span class="hero-hint">ScienceDirect / ASCE / IWMI Akademik Veritabanı Kaynağı</span>
                 </div>
             </div>
         </section>
@@ -307,19 +321,81 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             flex-wrap: wrap;
         }}
         .cat-btn {{
-            background: transparent;
-            border: 1px solid transparent;
-            padding: 6px 12px;
-            border-radius: 4px;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 7px 14px;
+            border-radius: 20px;
             font-size: 13px;
             font-weight: 600;
             color: var(--ink-dark);
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.2s ease;
+            user-select: none;
         }}
-        .cat-btn:hover, .cat-btn.active {{
+        .cat-btn:hover {{
+            background: #e2e8f0;
+            border-color: #94a3b8;
+            transform: translateY(-1px);
+        }}
+        .cat-btn.active {{
+            background: var(--newspaper-navy) !important;
+            color: white !important;
+            border-color: var(--newspaper-navy) !important;
+            box-shadow: 0 2px 8px rgba(11, 37, 69, 0.3);
+        }}
+        .empty-results-box {{
+            grid-column: 1 / -1;
+            background: #ffffff;
+            border: 2px dashed var(--border-line);
+            border-radius: 8px;
+            padding: 48px 24px;
+            text-align: center;
+            margin: 20px 0;
+            width: 100%;
+        }}
+        .empty-results-box .empty-icon {{
+            font-size: 42px;
+            margin-bottom: 12px;
+        }}
+        .empty-results-box h3 {{
+            font-family: 'Playfair Display', serif;
+            font-size: 1.35rem;
+            color: var(--newspaper-navy);
+            margin-bottom: 8px;
+        }}
+        .empty-results-box p {{
+            font-size: 13.5px;
+            color: var(--ink-muted);
+            max-width: 480px;
+            margin: 0 auto 20px;
+        }}
+        .btn-reset-filter {{
             background: var(--newspaper-navy);
             color: white;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s;
+        }}
+        .btn-reset-filter:hover {{
+            background: var(--newspaper-blue);
+        }}
+        .news-badge {{
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }}
+        .news-badge:hover {{
+            opacity: 0.85;
+        }}
+        .hero-category-tag {{
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }}
+        .hero-category-tag:hover {{
+            opacity: 0.85;
         }}
         .search-box {{
             display: flex;
@@ -883,18 +959,18 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
     </div>
 
     <!-- Category Nav Bar -->
-    <nav class="category-nav-bar">
+    <nav class="category-nav-bar" id="categoryNavBar">
         <div class="nav-inner">
-            <div class="category-pills">
-                <button class="cat-btn active" onclick="filterCategory('Tümü')">Tümü</button>
-                <button class="cat-btn" onclick="filterCategory('Tarımsal Sulama')">🌾 Tarımsal Sulama</button>
-                <button class="cat-btn" onclick="filterCategory('Su Teknolojileri')">🔬 Su Teknolojileri</button>
-                <button class="cat-btn" onclick="filterCategory('Su Kaynakları')">💧 Su Kaynakları</button>
-                <button class="cat-btn" onclick="filterCategory('İklim & Kuraklık')">🌍 İklim & Kuraklık</button>
-                <button class="cat-btn" onclick="filterCategory('Su Politikaları')">⚖️ Su Politikaları</button>
+            <div class="category-pills" id="categoryPills">
+                <button type="button" class="cat-btn active" data-slug="all" onclick="filterCategory('all')">Tümü</button>
+                <button type="button" class="cat-btn" data-slug="sulama" onclick="filterCategory('sulama')">🌾 Tarımsal Sulama</button>
+                <button type="button" class="cat-btn" data-slug="teknoloji" onclick="filterCategory('teknoloji')">🔬 Su Teknolojileri</button>
+                <button type="button" class="cat-btn" data-slug="kaynak" onclick="filterCategory('kaynak')">💧 Su Kaynakları</button>
+                <button type="button" class="cat-btn" data-slug="iklim" onclick="filterCategory('iklim')">🌍 İklim &amp; Kuraklık</button>
+                <button type="button" class="cat-btn" data-slug="politika" onclick="filterCategory('politika')">⚖️ Su Politikaları</button>
             </div>
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="🔍 Başlıklarda ara..." onkeyup="filterSearch()">
+                <input type="text" id="searchInput" placeholder="🔍 Başlıklarda ara..." oninput="filterSearch()">
             </div>
         </div>
     </nav>
@@ -906,7 +982,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         {hero_html}
 
         <!-- Sub Headlines (Surmansetler) -->
-        <section class="sub-headlines-grid">
+        <section class="sub-headlines-grid" id="subHeadlinesSection">
             {secondary_html}
         </section>
 
@@ -915,12 +991,20 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             
             <!-- Left Main Column: News Grid -->
             <div class="main-articles-col">
-                <div class="section-headline">
-                    <h3>🌊 Bilimsel Araştırmalar &amp; Son Raporlar</h3>
-                    <span>Toplam <strong>{len(items)}</strong> makale</span>
+                <div class="section-headline" id="mainNewsSection">
+                    <h3 id="sectionTitle">🌊 Son Bilimsel Araştırmalar &amp; Raporlar</h3>
+                    <span id="sectionCount">Toplam <strong>{len(items)}</strong> makale</span>
                 </div>
                 
                 <div class="articles-news-grid" id="newsGrid">
+                    <!-- Empty State Box -->
+                    <div id="noResultsState" class="empty-results-box" style="display: none;">
+                        <div class="empty-icon">💧</div>
+                        <h3 id="emptyTitle">Bu kategoride henüz haber bulunmuyor</h3>
+                        <p id="emptyDesc">Seçilen kriterlerle eşleşen makale bulunamadı. Yeni bültenler taranmaya devam etmektedir.</p>
+                        <button type="button" class="btn-reset-filter" onclick="filterCategory('all')">Tüm Haberleri Göster</button>
+                    </div>
+
                     {grid_html}
                 </div>
             </div>
@@ -1075,36 +1159,140 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             if (e.key === 'Escape') closeArticleModal();
         }});
 
-        function filterCategory(cat) {{
+        let currentSlug = 'all';
+
+        const CATEGORY_TITLES = {{
+            'all': '🌊 Son Bilimsel Araştırmalar &amp; Raporlar',
+            'sulama': '🌾 Tarımsal Sulama Araştırmaları',
+            'teknoloji': '🔬 Su Teknolojileri &amp; İnovasyon',
+            'kaynak': '💧 Su Kaynakları &amp; Havza Yönetimi',
+            'iklim': '🌍 İklim &amp; Kuraklık Araştırmaları',
+            'politika': '⚖️ Su Politikaları &amp; Yönetişim'
+        }};
+
+        function filterCategory(slug) {{
+            currentSlug = slug;
+
+            // Clear search input if present
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.value = '';
+
+            // Update active states on category buttons
             document.querySelectorAll('.cat-btn').forEach(btn => {{
-                if (btn.innerText.includes(cat) || (cat === 'Tümü' && btn.innerText === 'Tümü')) {{
-                    btn.classList.add('active');
-                }} else {{
-                    btn.classList.remove('active');
-                }}
+                btn.classList.toggle('active', btn.dataset.slug === slug);
             }});
 
-            const cards = document.querySelectorAll('.news-grid-card');
-            cards.forEach(c => {{
-                if (cat === 'Tümü' || c.getAttribute('data-category').includes(cat)) {{
-                    c.style.display = '';
+            const heroEl = document.getElementById('heroSection');
+            const subEl = document.getElementById('subHeadlinesSection');
+            const titleEl = document.getElementById('sectionTitle');
+            const countEl = document.getElementById('sectionCount');
+            const noResultsEl = document.getElementById('noResultsState');
+            const allCards = document.querySelectorAll('.news-grid-card');
+
+            let visibleCount = 0;
+
+            if (slug === 'all') {{
+                // Show Hero and Subheadlines sections
+                if (heroEl) heroEl.style.display = '';
+                if (subEl) subEl.style.display = '';
+
+                // Show only non-top cards in grid
+                allCards.forEach(card => {{
+                    const isTop = card.getAttribute('data-is-top') === 'true';
+                    if (!isTop) {{
+                        card.style.display = '';
+                        visibleCount++;
+                    }} else {{
+                        card.style.display = 'none';
+                    }}
+                }});
+
+                if (titleEl) titleEl.innerHTML = CATEGORY_TITLES['all'];
+                if (countEl) countEl.innerHTML = `Toplam <strong>${{allCards.length}}</strong> makale`;
+                if (noResultsEl) noResultsEl.style.display = 'none';
+
+            }} else {{
+                // Specific category chosen: hide top showcase so non-matching articles don't distract
+                if (heroEl) heroEl.style.display = 'none';
+                if (subEl) subEl.style.display = 'none';
+
+                // Display all matching cards (including cards 0..3)
+                allCards.forEach(card => {{
+                    if (card.dataset.slug === slug) {{
+                        card.style.display = '';
+                        visibleCount++;
+                    }} else {{
+                        card.style.display = 'none';
+                    }}
+                }});
+
+                const catTitle = CATEGORY_TITLES[slug] || 'Kategori Haberleri';
+                if (titleEl) titleEl.innerHTML = catTitle;
+                if (countEl) countEl.innerHTML = `Kategoride <strong>${{visibleCount}}</strong> makale`;
+
+                if (visibleCount === 0) {{
+                    if (noResultsEl) {{
+                        document.getElementById('emptyTitle').innerText = 'Bu kategoride henüz haber bulunmuyor';
+                        document.getElementById('emptyDesc').innerText = 'Seçtiğiniz kategoride yeni bültenler otomatik taranmaya devam etmektedir.';
+                        noResultsEl.style.display = 'block';
+                    }}
                 }} else {{
-                    c.style.display = 'none';
+                    if (noResultsEl) noResultsEl.style.display = 'none';
                 }}
-            }});
+
+                // Smoothly scroll to the articles section
+                const target = document.getElementById('mainNewsSection');
+                if (target) {{
+                    target.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+                }}
+            }}
         }}
 
         function filterSearch() {{
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            const cards = document.querySelectorAll('.news-grid-card');
-            cards.forEach(c => {{
-                const title = c.getAttribute('data-title');
-                if (title.indexOf(query) > -1) {{
-                    c.style.display = '';
+            const input = document.getElementById('searchInput');
+            const query = input.value.trim().toLowerCase();
+
+            if (!query) {{
+                filterCategory(currentSlug);
+                return;
+            }}
+
+            // Deactivate category buttons while search query is active
+            document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
+
+            const heroEl = document.getElementById('heroSection');
+            const subEl = document.getElementById('subHeadlinesSection');
+            const titleEl = document.getElementById('sectionTitle');
+            const countEl = document.getElementById('sectionCount');
+            const noResultsEl = document.getElementById('noResultsState');
+            const allCards = document.querySelectorAll('.news-grid-card');
+
+            if (heroEl) heroEl.style.display = 'none';
+            if (subEl) subEl.style.display = 'none';
+
+            let matchCount = 0;
+            allCards.forEach(card => {{
+                const searchCorpus = (card.getAttribute('data-search') || '').toLowerCase();
+                if (searchCorpus.indexOf(query) > -1) {{
+                    card.style.display = '';
+                    matchCount++;
                 }} else {{
-                    c.style.display = 'none';
+                    card.style.display = 'none';
                 }}
             }});
+
+            if (titleEl) titleEl.innerHTML = `🔍 Arama Sonuçları: "${{query}}"`;
+            if (countEl) countEl.innerHTML = `Eşleşen <strong>${{matchCount}}</strong> makale`;
+
+            if (matchCount === 0) {{
+                if (noResultsEl) {{
+                    document.getElementById('emptyTitle').innerText = `"${{query}}" ile eşleşen sonuç bulunamadı`;
+                    document.getElementById('emptyDesc').innerText = 'Farklı bir arama terimi deneyebilir veya kategorileri seçebilirsiniz.';
+                    noResultsEl.style.display = 'block';
+                }}
+            }} else {{
+                if (noResultsEl) noResultsEl.style.display = 'none';
+            }}
         }}
     </script>
 </body>

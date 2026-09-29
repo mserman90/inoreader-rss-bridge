@@ -22,7 +22,7 @@ from app import config
 from app.storage import Storage
 from app.scraper import scrape_inoreader
 from app.feed import generate_rss_2_xml, generate_atom_xml, generate_json_feed
-from app.translator import batch_translate_articles
+from app.translator import batch_translate_articles, categorize_article
 from app.portal import generate_newspaper_portal_html
 
 def main():
@@ -45,15 +45,16 @@ def main():
     # Parallel translation for missing items
     items = batch_translate_articles(items)
 
-    # Persist translations into SQLite
+    # Persist translations and updated categories into SQLite
     for it in items:
-        if it.get("title_tr") or it.get("category_tr"):
-            storage.update_item_translation(
-                it["guid"],
-                it.get("title_tr", it["title"]),
-                it.get("summary_tr", ""),
-                it.get("category_tr", "Su Kaynakları")
-            )
+        new_cat = categorize_article(it["title"], it.get("description", ""))
+        it["category_tr"] = new_cat
+        storage.update_item_translation(
+            it["guid"],
+            it.get("title_tr", it["title"]),
+            it.get("summary_tr", ""),
+            new_cat
+        )
 
     public_url = config.PUBLIC_BASE_URL or "https://mserman90.github.io/inoreader-rss-bridge"
     rss_self = f"{public_url}/rss.xml"
