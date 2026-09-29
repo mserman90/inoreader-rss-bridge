@@ -40,9 +40,12 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
 
     # JSON payload for modal dialogs
     import json
+    from app.image_enricher import resolve_article_image
     portal_data = []
     for idx, it in enumerate(items_sorted):
-        img = it.get("image_url") or default_water_images[idx % len(default_water_images)]
+        img = it.get("image_url")
+        if not img or "inoreader.com/camo" in img:
+            img = resolve_article_image(it, idx)
         title_tr = it.get("title_tr") or it.get("title")
         summary_tr = it.get("summary_tr") or clean_html_tags(it.get("description", ""))
         category = it.get("category_tr") or "Su Kaynakları"
@@ -1335,7 +1338,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
                     <span id="modalAuthor">✍️ Yazar</span>
                 </div>
 
-                <img src="" id="modalImg" class="modal-img" alt="Haber Görseli">
+                <img src="" id="modalImg" class="modal-img" alt="Haber Görseli" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544717305-2782549b5136?w=900&q=80';">
 
                 <div class="modal-text" id="modalContent">
                     Haber içeriği yükleniyor...

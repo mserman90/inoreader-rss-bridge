@@ -65,7 +65,7 @@ class Storage:
             for it in items:
                 guid = it["guid"]
                 cursor.execute(
-                    "SELECT guid, pub_date, pub_date_ts, first_seen_ts, title_tr, summary_tr, category_tr FROM items WHERE guid = ?",
+                    "SELECT guid, pub_date, pub_date_ts, first_seen_ts, title_tr, summary_tr, category_tr, image_url FROM items WHERE guid = ?",
                     (guid,)
                 )
                 existing = cursor.fetchone()
@@ -73,6 +73,12 @@ class Storage:
                 title_tr = it.get("title_tr") or (existing["title_tr"] if existing else None)
                 summary_tr = it.get("summary_tr") or (existing["summary_tr"] if existing else None)
                 category_tr = it.get("category_tr") or (existing["category_tr"] if existing else None)
+                
+                # Determine image URL: prefer new valid image, keep existing resolved image if new is empty/camo
+                img_url = (it.get("image_url") or "").strip()
+                if existing and existing["image_url"]:
+                    if not img_url or "inoreader.com/camo" in img_url:
+                        img_url = existing["image_url"]
 
                 if existing:
                     cursor.execute("""
@@ -94,7 +100,7 @@ class Storage:
                         it.get("author", ""),
                         it.get("source_feed", ""),
                         it.get("description", ""),
-                        it.get("image_url", ""),
+                        img_url,
                         it.get("raw_date_str", ""),
                         title_tr,
                         summary_tr,
@@ -123,7 +129,7 @@ class Storage:
                         it.get("author", ""),
                         it.get("source_feed", ""),
                         it.get("description", ""),
-                        it.get("image_url", ""),
+                        img_url,
                         pub_date_rfc,
                         pub_ts,
                         now_ts,
@@ -147,6 +153,16 @@ class Storage:
                     category_tr = ?
                 WHERE guid = ?
             """, (title_tr, summary_tr, category_tr, guid))
+            conn.commit()
+
+    def update_item_image(self, guid: str, image_url: str):
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE items SET
+                    image_url = ?
+                WHERE guid = ?
+            """, (image_url, guid))
             conn.commit()
 
     def get_items(self, limit: int = 100) -> List[Dict[str, Any]]:

@@ -42,11 +42,13 @@ def main():
     items = storage.get_items(limit=100)
     print(f"[+] Toplam veritabanı kaydı: {len(items)}")
 
+    from app.image_enricher import resolve_article_image
+
     # Parallel translation for missing items
     items = batch_translate_articles(items)
 
-    # Persist translations and updated categories into SQLite
-    for it in items:
+    # Persist translations, updated categories and resolved images into SQLite
+    for idx, it in enumerate(items):
         title_tr = it.get("title_tr") or it["title"]
         category_tr = it.get("category_tr") or categorize_article(title_tr + " " + it["title"], it.get("description", ""))
         it["category_tr"] = category_tr
@@ -56,6 +58,10 @@ def main():
             it.get("summary_tr", ""),
             category_tr
         )
+        resolved_img = resolve_article_image(it, idx)
+        it["image_url"] = resolved_img
+        storage.update_item_image(it["guid"], resolved_img)
+    print(f"[+] {len(items)} haberin görselleri çözümlendi ve veritabanına işlendi.")
 
     public_url = config.PUBLIC_BASE_URL or "https://mserman90.github.io/suhaberportali"
     rss_self = f"{public_url}/rss.xml"

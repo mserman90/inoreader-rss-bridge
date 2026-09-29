@@ -207,6 +207,15 @@ def scrape_inoreader(url: str, timeout: int = 15) -> Dict[str, Any]:
                 if not src.endswith("circle_icon_logo.svg"):
                     image_url = src
 
+        if image_url:
+            try:
+                from app.image_enricher import unwrap_inoreader_camo
+                unwrapped = unwrap_inoreader_camo(image_url)
+                if unwrapped:
+                    image_url = unwrapped
+            except Exception:
+                pass
+
         # Build clean HTML description for RSS readers
         desc_parts = []
         if image_url:
