@@ -20,11 +20,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from app import config
 from app.storage import Storage
-from app.scraper import scrape_inoreader
+from app.scraper import scrape_inoreader, scrape_turkey_water_news
 from app.feed import generate_rss_2_xml, generate_atom_xml, generate_json_feed
 from app.translator import batch_translate_articles, categorize_article
 from app.portal import generate_newspaper_portal_html
 from app.podcast import generate_daily_podcast
+import re
 
 def main():
     dist_dir = Path(os.getenv("DIST_DIR", config.BASE_DIR / "dist"))
@@ -35,12 +36,17 @@ def main():
     raw_items = data.get("items", [])
     print(f"[+] Çekilen güncel makale sayısı: {len(raw_items)}")
 
+    print("[*] Türkiye su haberleri taranıyor...")
+    turkey_items = scrape_turkey_water_news(limit=25)
+    print(f"[+] Çekilen güncel Türkiye su haberi sayısı: {len(turkey_items)}")
+
     storage = Storage(config.DB_PATH)
     storage.save_items(raw_items)
+    storage.save_items(turkey_items)
     storage.prune_items(config.MAX_STORED_ITEMS)
 
     # Retrieve all stored items
-    items = storage.get_items(limit=100)
+    items = storage.get_items(limit=150)
     print(f"[+] Toplam veritabanı kaydı: {len(items)}")
 
     from app.image_enricher import resolve_article_image
@@ -48,16 +54,36 @@ def main():
     # Parallel translation for missing items
     items = batch_translate_articles(items)
 
-    # Persist translations, updated categories and resolved images into SQLite
+    TURKEY_PAT = re.compile(
+        r"\b(türkiye|turkey|türk su|türkiye'de|dsi|devlet su işleri|barajı|barajları|baraj doluluk|iski|aski|izsu|gap projesi|güneydoğu anadolu|fırat nehri|dicle nehri|kızılırmak|yeşilırmak|meriç nehri|gediz nehri|büyük menderes|küçük menderes|sakarya nehri|van gölü|tuz gölü|beyşehir gölü|eğirdir gölü|atatürk barajı|keban barajı|karakaya barajı|tarım ve orman bakanlığı|su verimliliği seferberliği)\b",
+        re.IGNORECASE
+    )
+
+    # Persist translations, updated categories, Turkey flag and resolved images into SQLite
     for idx, it in enumerate(items):
         title_tr = it.get("title_tr") or it["title"]
-        category_tr = it.get("category_tr") or categorize_article(title_tr + " " + it["title"], it.get("description", ""))
+        source = it.get("source_feed") or ""
+        desc = it.get("description") or ""
+
+        # Check if article genuinely relates to Turkey
+        is_tr_scraped = bool(it.get("guid", "").startswith("tr_water:") or "🇹🇷" in source)
+        is_tr_match = bool(TURKEY_PAT.search(title_tr + " " + it.get("title", "") + " " + desc + " " + source))
+        is_turkey = 1 if (is_tr_scraped or is_tr_match) else 0
+        it["is_turkey"] = is_turkey
+
+        category_tr = it.get("category_tr")
+        if is_turkey:
+            category_tr = "Türkiye"
+        elif not category_tr or category_tr == "Türkiye":
+            category_tr = categorize_article(title_tr + " " + it["title"], desc)
         it["category_tr"] = category_tr
+
         storage.update_item_translation(
             it["guid"],
             title_tr,
             it.get("summary_tr", ""),
-            category_tr
+            category_tr,
+            is_turkey
         )
         resolved_img = resolve_article_image(it, idx)
         it["image_url"] = resolved_img

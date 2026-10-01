@@ -53,6 +53,16 @@ THEMATIC_IMAGES = {
         "https://images.unsplash.com/photo-1432405972618-c60b0225b8f9?w=900&q=80",  # Clean waterfall basin
         "https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?w=900&q=80",  # Glacier freshwater melt
         "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=900&q=80",  # River estuary
+    ],
+    "Türkiye": [
+        "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=900&q=80",  # Reservoir dam water
+        "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=900&q=80",  # Agricultural field irrigation
+        "https://images.unsplash.com/photo-1586771107445-d3ca888129ff?w=900&q=80",  # Pivot sprinkler irrigation
+        "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=900&q=80",  # Irrigation canal
+        "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=900&q=80",  # River valley basin
+        "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=900&q=80",  # Dam spillway
+        "https://images.unsplash.com/photo-1426604966848-d7adac402bff?w=900&q=80",  # Anatolian mountain river
+        "https://images.unsplash.com/photo-1544717305-2782549b5136?w=900&q=80",  # Clear water droplet
     ]
 }
 
@@ -119,7 +129,9 @@ def get_thematic_image(title: str, category: str, seed_index: int = 0) -> str:
     title_lower = (title or "").lower()
 
     # Sub-keyword refinement for precise visual matching
-    if re.search(r'\b(damla|pivot|fıskiye|tarla|mahsul|hasat|sulama|sprinkler|drip|crop)\b', title_lower):
+    if category == "Türkiye" or re.search(r'\b(türkiye|turkey|türk|dsi|baraj|iski|aski|izsu|gap|anadolu|fırat|dicle|kızılırmak|meriç|gediz|menderes|sakarya|van gölü|tuz gölü|beyşehir|eğirdir)\b', title_lower):
+        category = "Türkiye"
+    elif re.search(r'\b(damla|pivot|fıskiye|tarla|mahsul|hasat|sulama|sprinkler|drip|crop)\b', title_lower):
         category = "Tarımsal Sulama"
     elif re.search(r'\b(arıtma|kanalizasyon|boru|şebeke|sayaç|sensör|filtrasyon|wastewater|leak|pipe)\b', title_lower):
         category = "Su Teknolojileri"

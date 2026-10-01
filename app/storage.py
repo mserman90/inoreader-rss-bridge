@@ -36,7 +36,7 @@ class Storage:
                     category_tr TEXT
                 )
             """)
-            for col in ["title_tr", "summary_tr", "category_tr"]:
+            for col in ["title_tr", "summary_tr", "category_tr", "is_turkey"]:
                 try:
                     cursor.execute(f"ALTER TABLE items ADD COLUMN {col} TEXT")
                 except sqlite3.OperationalError:
@@ -65,7 +65,7 @@ class Storage:
             for it in items:
                 guid = it["guid"]
                 cursor.execute(
-                    "SELECT guid, pub_date, pub_date_ts, first_seen_ts, title_tr, summary_tr, category_tr, image_url FROM items WHERE guid = ?",
+                    "SELECT guid, pub_date, pub_date_ts, first_seen_ts, title_tr, summary_tr, category_tr, image_url, is_turkey FROM items WHERE guid = ?",
                     (guid,)
                 )
                 existing = cursor.fetchone()
@@ -80,6 +80,11 @@ class Storage:
                     if not img_url or "inoreader.com/camo" in img_url:
                         img_url = existing["image_url"]
 
+                is_val = it.get("is_turkey")
+                if is_val is None and existing and "is_turkey" in existing.keys():
+                    is_val = existing["is_turkey"]
+                is_turkey_val = 1 if (str(is_val).strip() in ["1", "True", "true"] or is_val == 1) else 0
+
                 if existing:
                     cursor.execute("""
                         UPDATE items SET
@@ -92,7 +97,8 @@ class Storage:
                             raw_date_str = ?,
                             title_tr = ?,
                             summary_tr = ?,
-                            category_tr = ?
+                            category_tr = ?,
+                            is_turkey = ?
                         WHERE guid = ?
                     """, (
                         it["title"],
@@ -105,6 +111,7 @@ class Storage:
                         title_tr,
                         summary_tr,
                         category_tr,
+                        is_turkey_val,
                         guid
                     ))
                 else:
@@ -120,8 +127,8 @@ class Storage:
                             guid, title, link, author, source_feed,
                             description, image_url, pub_date, pub_date_ts,
                             first_seen_ts, raw_date_str,
-                            title_tr, summary_tr, category_tr
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            title_tr, summary_tr, category_tr, is_turkey
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         guid,
                         it["title"],
@@ -136,23 +143,25 @@ class Storage:
                         it.get("raw_date_str", ""),
                         title_tr,
                         summary_tr,
-                        category_tr
+                        category_tr,
+                        is_turkey_val
                     ))
 
             conn.commit()
 
         return new_count
 
-    def update_item_translation(self, guid: str, title_tr: str, summary_tr: str, category_tr: str):
+    def update_item_translation(self, guid: str, title_tr: str, summary_tr: str, category_tr: str, is_turkey: int = 0):
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE items SET
                     title_tr = ?,
                     summary_tr = ?,
-                    category_tr = ?
+                    category_tr = ?,
+                    is_turkey = ?
                 WHERE guid = ?
-            """, (title_tr, summary_tr, category_tr, guid))
+            """, (title_tr, summary_tr, category_tr, int(is_turkey), guid))
             conn.commit()
 
     def update_item_image(self, guid: str, image_url: str):
@@ -165,20 +174,26 @@ class Storage:
             """, (image_url, guid))
             conn.commit()
 
-    def get_items(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_items(self, limit: int = 150) -> List[Dict[str, Any]]:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT guid, title, link, author, source_feed,
                        description, image_url, pub_date, pub_date_ts,
                        first_seen_ts, raw_date_str,
-                       title_tr, summary_tr, category_tr
+                       title_tr, summary_tr, category_tr, is_turkey
                 FROM items
                 ORDER BY pub_date_ts DESC, first_seen_ts DESC
                 LIMIT ?
             """, (limit,))
             rows = cursor.fetchall()
-            return [dict(r) for r in rows]
+            items_list = []
+            for r in rows:
+                d = dict(r)
+                raw_tr = d.get("is_turkey")
+                d["is_turkey"] = 1 if (str(raw_tr).strip() in ["1", "True", "true"] or raw_tr == 1) else 0
+                items_list.append(d)
+            return items_list
 
     def count_items(self) -> int:
         with self._get_connection() as conn:

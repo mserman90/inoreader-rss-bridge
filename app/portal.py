@@ -87,6 +87,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
     ]
 
     CATEGORY_SLUGS = {
+        "Türkiye": "turkiye",
         "Tarımsal Sulama": "sulama",
         "Su Teknolojileri": "teknoloji",
         "Su Arıtma & Kalite": "teknoloji",
@@ -105,9 +106,10 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             img = resolve_article_image(it, idx)
         title_tr = it.get("title_tr") or it.get("title")
         summary_tr = it.get("summary_tr") or clean_html_tags(it.get("description", ""))
-        category = it.get("category_tr") or "Su Kaynakları"
         source = it.get("source_feed") or it.get("author") or "Bilimsel Araştırma"
-        slug = CATEGORY_SLUGS.get(category, "kaynak")
+        is_turkey = bool(it.get("is_turkey") or it.get("category_tr") == "Türkiye" or "🇹🇷" in source)
+        category = "Türkiye" if is_turkey else (it.get("category_tr") or "Su Kaynakları")
+        slug = "turkiye" if is_turkey else CATEGORY_SLUGS.get(category, "kaynak")
         portal_data.append({
             "id": idx,
             "title_tr": title_tr,
@@ -119,18 +121,66 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             "author": it.get("author", ""),
             "date": it.get("pub_date", ""),
             "link": it.get("link", ""),
-            "image": img
+            "image": img,
+            "is_turkey": is_turkey
         })
 
     json_portal_data = json.dumps(portal_data, ensure_ascii=False)
 
+    # Dedicated Prioritized Turkey Water News Section
+    turkey_items = [it for it in portal_data if it.get("is_turkey")]
+    turkey_section_html = ""
+    if turkey_items:
+        turkey_cards_html = ""
+        for it in turkey_items[:4]:
+            t_date = html.escape(it['date'][:16] if it.get('date') else today_str)
+            t_source = html.escape(it['source'][:28])
+            turkey_cards_html += f"""
+            <div class="turkey-card" onclick="openArticleModal({it['id']})" data-slug="turkiye">
+                <div class="turkey-card-img" style="background-image: url('{html.escape(it['image'])}');">
+                    <span class="turkey-badge">🇹🇷 Yerel Gündem</span>
+                </div>
+                <div class="turkey-card-body">
+                    <div class="turkey-card-meta">
+                        <span>📅 {t_date}</span>
+                        <span>🏛️ {t_source}</span>
+                    </div>
+                    <h4 class="turkey-card-title">{html.escape(it['title_tr'])}</h4>
+                    <p class="turkey-card-excerpt">{html.escape(it['summary_tr'][:120])}...</p>
+                    <div class="turkey-card-footer">
+                        <span class="turkey-read-btn">Haberi İncele &rarr;</span>
+                    </div>
+                </div>
+            </div>
+            """
+
+        turkey_section_html = f"""
+        <section class="turkey-priority-section" id="turkeySection">
+            <div class="turkey-section-header">
+                <div class="turkey-header-title-wrap">
+                    <span class="turkey-flag-pill">🇹🇷 ÖNCELİKLİ YAYIN</span>
+                    <h3 class="turkey-section-title">TÜRKİYE SU GÜNDEMİ &amp; YEREL GELİŞMELER</h3>
+                </div>
+                <div class="turkey-header-right">
+                    <span class="turkey-section-subtitle">DSİ Projeleri &bull; Baraj Dolulukları &bull; Tarımsal Sulama &bull; Su Yönetimi</span>
+                    <button type="button" class="btn-turkey-all" onclick="filterCategory('turkiye')">Tüm Türkiye Haberleri ({len(turkey_items)}) &rarr;</button>
+                </div>
+            </div>
+            <div class="turkey-cards-grid">
+                {turkey_cards_html}
+            </div>
+        </section>
+        """
+
     # Secondary headline cards
     secondary_html = ""
     for it in portal_data[1:4]:
+        badge_cls = "news-badge news-badge-turkey" if it.get("is_turkey") else "news-badge"
+        badge_lbl = f"🇹🇷 {html.escape(it['category'])}" if it.get("is_turkey") else html.escape(it['category'])
         secondary_html += f"""
         <div class="sub-headline-card" onclick="openArticleModal({it['id']})" data-slug="{it['slug']}">
             <div class="sub-headline-img" style="background-image: url('{html.escape(it['image'])}');">
-                <span class="news-badge" onclick="event.stopPropagation(); filterCategory('{it['slug']}')">{html.escape(it['category'])}</span>
+                <span class="{badge_cls}" onclick="event.stopPropagation(); filterCategory('{it['slug']}')">{badge_lbl}</span>
             </div>
             <div class="sub-headline-content">
                 <span class="news-date">📅 {html.escape(it['date'][:16] if it.get('date') else today_str)}</span>
@@ -146,10 +196,13 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         is_top = it['id'] < 4
         display_style = ' style="display: none;"' if is_top else ''
         search_corpus = clean_html_tags(f"{it['title_tr']} {it['title_en']} {it['summary_tr']} {it['category']}").lower()
+        badge_cls = "news-badge news-badge-turkey" if it.get("is_turkey") else "news-badge"
+        badge_lbl = f"🇹🇷 {html.escape(it['category'])}" if it.get("is_turkey") else html.escape(it['category'])
+        is_tr_str = "true" if it.get("is_turkey") else "false"
         grid_html += f"""
-        <article class="news-grid-card" data-slug="{it['slug']}" data-category="{html.escape(it['category'])}" data-is-top="{'true' if is_top else 'false'}" data-search="{html.escape(search_corpus)}"{display_style}>
+        <article class="news-grid-card" data-slug="{it['slug']}" data-is-turkey="{is_tr_str}" data-category="{html.escape(it['category'])}" data-is-top="{'true' if is_top else 'false'}" data-search="{html.escape(search_corpus)}"{display_style}>
             <div class="card-img-wrap" style="background-image: url('{html.escape(it['image'])}');" onclick="openArticleModal({it['id']})">
-                <span class="news-badge" onclick="event.stopPropagation(); filterCategory('{it['slug']}')">{html.escape(it['category'])}</span>
+                <span class="{badge_cls}" onclick="event.stopPropagation(); filterCategory('{it['slug']}')">{badge_lbl}</span>
             </div>
             <div class="card-body">
                 <div class="card-meta">
@@ -175,10 +228,22 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         </article>
         """
 
-    # Ticker items (Continuous scrolling banner - top 15 articles)
+    # Ticker items (Continuous scrolling banner - prioritizing Turkey news)
+    turkey_ticker_items = [it for it in portal_data if it.get("is_turkey")]
+    merged_ticker = []
+    # Take top 3 Turkey items first for high visibility
+    merged_ticker.extend(turkey_ticker_items[:3])
+    # Then fill up to 18 items with top portal items
+    for it in portal_data:
+        if it not in merged_ticker and len(merged_ticker) < 18:
+            merged_ticker.append(it)
+
     ticker_elements = []
-    for it in portal_data[:15]:
-        cat_badge = f'<span class="ticker-cat-tag">[{html.escape(it["category"])}]</span>'
+    for it in merged_ticker:
+        if it.get("is_turkey"):
+            cat_badge = '<span class="ticker-cat-tag ticker-cat-turkey">[🇹🇷 Türkiye]</span>'
+        else:
+            cat_badge = f'<span class="ticker-cat-tag">[{html.escape(it["category"])}]</span>'
         ticker_elements.append(
             f'<span class="ticker-item" onclick="openArticleModal({it["id"]})">'
             f'<span class="ticker-icon">⚡</span> '
@@ -518,6 +583,13 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             color: var(--newspaper-blue);
             opacity: 0.9;
         }}
+        .ticker-cat-turkey {{
+            color: #c1121f !important;
+            font-weight: 800 !important;
+        }}
+        [data-theme="dark"] .ticker-cat-turkey {{
+            color: #f87171 !important;
+        }}
         .ticker-sep {{
             margin-left: 20px;
             color: var(--border-line);
@@ -569,6 +641,20 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             color: var(--cat-btn-active-color) !important;
             border-color: var(--cat-btn-active-bg) !important;
             box-shadow: 0 2px 8px rgba(11, 37, 69, 0.3);
+        }}
+        .cat-btn-turkey {{
+            border-color: #ef4444;
+            color: #c1121f;
+            font-weight: 700;
+        }}
+        [data-theme="dark"] .cat-btn-turkey {{
+            color: #f87171;
+            border-color: #b91c1c;
+        }}
+        .cat-btn-turkey.active {{
+            background: #c1121f !important;
+            border-color: #c1121f !important;
+            color: #ffffff !important;
         }}
         .empty-results-box {{
             grid-column: 1 / -1;
@@ -770,6 +856,187 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             color: var(--ink-light);
         }}
 
+        /* Turkey Water News Dedicated Priority Section */
+        .turkey-priority-section {{
+            background: var(--paper-card);
+            border: 1px solid var(--border-line);
+            border-top: 4px solid var(--accent-red);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 32px;
+            box-shadow: var(--shadow-subtle);
+            transition: background-color 0.25s ease, border-color 0.25s ease;
+        }}
+        [data-theme="dark"] .turkey-priority-section {{
+            background: var(--paper-card);
+            border-color: #1e293b;
+            border-top-color: #ef4444;
+        }}
+        .turkey-section-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-light);
+            padding-bottom: 12px;
+        }}
+        .turkey-header-title-wrap {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }}
+        .turkey-header-right {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }}
+        .turkey-flag-pill {{
+            background: #c1121f;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 4px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }}
+        .turkey-section-title {{
+            font-family: 'Playfair Display', 'Merriweather', serif;
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: var(--ink-black);
+            margin: 0;
+            letter-spacing: 0.5px;
+        }}
+        .turkey-section-subtitle {{
+            font-size: 12px;
+            color: var(--ink-muted);
+            font-weight: 500;
+        }}
+        .btn-turkey-all {{
+            background: transparent;
+            border: 1px solid #c1121f;
+            color: #c1121f;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }}
+        .btn-turkey-all:hover {{
+            background: #c1121f;
+            color: #ffffff;
+        }}
+        [data-theme="dark"] .btn-turkey-all {{
+            border-color: #ef4444;
+            color: #f87171;
+        }}
+        [data-theme="dark"] .btn-turkey-all:hover {{
+            background: #ef4444;
+            color: #0b1a30;
+        }}
+        .turkey-cards-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 18px;
+        }}
+        .turkey-card {{
+            background: var(--paper-bg);
+            border: 1px solid var(--border-line);
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            box-shadow: var(--shadow-subtle);
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s, background-color 0.25s;
+        }}
+        .turkey-card:hover {{
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+            border-color: #c1121f;
+        }}
+        [data-theme="dark"] .turkey-card {{
+            background: #0d1527;
+            border-color: #1e293b;
+        }}
+        [data-theme="dark"] .turkey-card:hover {{
+            border-color: #ef4444;
+        }}
+        .turkey-card-img {{
+            height: 155px;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }}
+        .turkey-badge {{
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(193, 18, 31, 0.92);
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 3px;
+            letter-spacing: 0.3px;
+        }}
+        .turkey-card-body {{
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }}
+        .turkey-card-meta {{
+            font-size: 11px;
+            color: var(--ink-light);
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }}
+        .turkey-card-title {{
+            font-family: 'Merriweather', serif;
+            font-size: 13.5px;
+            font-weight: 700;
+            line-height: 1.4;
+            color: var(--ink-black);
+            margin-bottom: 6px;
+        }}
+        .turkey-card:hover .turkey-card-title {{
+            color: #c1121f;
+        }}
+        [data-theme="dark"] .turkey-card:hover .turkey-card-title {{
+            color: #f87171;
+        }}
+        .turkey-card-excerpt {{
+            font-size: 12px;
+            color: var(--ink-muted);
+            line-height: 1.45;
+            margin-bottom: 12px;
+            flex-grow: 1;
+        }}
+        .turkey-card-footer {{
+            display: flex;
+            justify-content: flex-end;
+            border-top: 1px solid var(--border-light);
+            padding-top: 8px;
+            margin-top: auto;
+        }}
+        .turkey-read-btn {{
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #c1121f;
+        }}
+        [data-theme="dark"] .turkey-read-btn {{
+            color: #f87171;
+        }}
+
         /* Secondary Headlines Row */
         .sub-headlines-grid {{
             display: grid;
@@ -814,6 +1081,11 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             font-weight: 700;
             padding: 2px 6px;
             border-radius: 2px;
+        }}
+        .news-badge-turkey {{
+            background: #c1121f !important;
+            color: #ffffff !important;
+            font-weight: 800 !important;
         }}
         .news-date {{
             font-size: 11px;
@@ -1343,6 +1615,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         <div class="nav-inner">
             <div class="category-pills" id="categoryPills">
                 <button type="button" class="cat-btn active" data-slug="all" onclick="filterCategory('all')">Tümü</button>
+                <button type="button" class="cat-btn cat-btn-turkey" data-slug="turkiye" onclick="filterCategory('turkiye')">🇹🇷 Türkiye</button>
                 <button type="button" class="cat-btn" data-slug="sulama" onclick="filterCategory('sulama')">🌾 Tarımsal Sulama</button>
                 <button type="button" class="cat-btn" data-slug="teknoloji" onclick="filterCategory('teknoloji')">🔬 Su Teknolojileri</button>
                 <button type="button" class="cat-btn" data-slug="kaynak" onclick="filterCategory('kaynak')">💧 Su Kaynakları</button>
@@ -1368,6 +1641,9 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
 
         <!-- Gunluk Podcast Oynatici Karti -->
         {podcast_banner_html}
+
+        <!-- Turkiye Su Gundemi & Yerel Gelismeler Ozel Bolumu (Oncelikli Bolum) -->
+        {turkey_section_html}
 
         <!-- Sub Headlines (Surmansetler) -->
         <section class="sub-headlines-grid" id="subHeadlinesSection">
@@ -1516,8 +1792,8 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             const it = articlesData.find(a => a.id === id);
             if (!it) return;
 
-            document.getElementById('modalBadge').innerText = it.category;
-            document.getElementById('modalHeaderCategory').innerText = it.category.toUpperCase() + ' &bull; SU HABER BÜLTENİ';
+            document.getElementById('modalBadge').innerText = (it.is_turkey ? '🇹🇷 ' : '') + it.category;
+            document.getElementById('modalHeaderCategory').innerText = (it.is_turkey ? 'TÜRKİYE SU BÜLTENİ &bull; ' : '') + it.category.toUpperCase() + ' &bull; SU HABER BÜLTENİ';
             document.getElementById('modalTitleTr').innerText = it.title_tr;
             document.getElementById('modalTitleEn').innerText = 'Orijinal Başlık: ' + it.title_en;
             document.getElementById('modalDate').innerText = '📅 ' + it.date;
@@ -1554,6 +1830,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
 
         const CATEGORY_TITLES = {{
             'all': '🌊 Son Bilimsel Araştırmalar &amp; Raporlar',
+            'turkiye': '🇹🇷 Türkiye Su Gündemi, Barajlar &amp; Sulama Projeleri',
             'sulama': '🌾 Tarımsal Sulama Araştırmaları',
             'teknoloji': '🔬 Su Teknolojileri &amp; İnovasyon',
             'kaynak': '💧 Su Kaynakları &amp; Havza Yönetimi',
@@ -1575,6 +1852,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
 
             const heroEl = document.getElementById('heroSection');
             const subEl = document.getElementById('subHeadlinesSection');
+            const turkeyEl = document.getElementById('turkeySection');
             const titleEl = document.getElementById('sectionTitle');
             const countEl = document.getElementById('sectionCount');
             const noResultsEl = document.getElementById('noResultsState');
@@ -1583,9 +1861,10 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             let visibleCount = 0;
 
             if (slug === 'all') {{
-                // Show Hero and Subheadlines sections
+                // Show Hero, Subheadlines, and Turkey Priority sections
                 if (heroEl) heroEl.style.display = '';
                 if (subEl) subEl.style.display = '';
+                if (turkeyEl) turkeyEl.style.display = '';
 
                 // Show only non-top cards in grid
                 allCards.forEach(card => {{
@@ -1602,10 +1881,46 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
                 if (countEl) countEl.innerHTML = `Toplam <strong>${{allCards.length}}</strong> makale`;
                 if (noResultsEl) noResultsEl.style.display = 'none';
 
-            }} else {{
-                // Specific category chosen: hide top showcase so non-matching articles don't distract
+            }} else if (slug === 'turkiye') {{
+                // Türkiye category chosen: keep Turkey Priority section visible
                 if (heroEl) heroEl.style.display = 'none';
                 if (subEl) subEl.style.display = 'none';
+                if (turkeyEl) turkeyEl.style.display = '';
+
+                // Display all Turkey cards in grid
+                allCards.forEach(card => {{
+                    const isTurkey = card.getAttribute('data-is-turkey') === 'true' || card.dataset.slug === 'turkiye';
+                    if (isTurkey) {{
+                        card.style.display = '';
+                        visibleCount++;
+                    }} else {{
+                        card.style.display = 'none';
+                    }}
+                }});
+
+                if (titleEl) titleEl.innerHTML = CATEGORY_TITLES['turkiye'];
+                if (countEl) countEl.innerHTML = `Kategoride <strong>${{visibleCount}}</strong> makale`;
+
+                if (visibleCount === 0) {{
+                    if (noResultsEl) {{
+                        document.getElementById('emptyTitle').innerText = 'Türkiye su haberleri taranıyor...';
+                        document.getElementById('emptyDesc').innerText = 'DSİ ve yerel su idareleri bültenleri otomatik taranmaya devam etmektedir.';
+                        noResultsEl.style.display = 'block';
+                    }}
+                }} else {{
+                    if (noResultsEl) noResultsEl.style.display = 'none';
+                }}
+
+                const target = document.getElementById('mainNewsSection');
+                if (target) {{
+                    target.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+                }}
+
+            }} else {{
+                // Specific category chosen: hide hero, subheadlines and turkey section
+                if (heroEl) heroEl.style.display = 'none';
+                if (subEl) subEl.style.display = 'none';
+                if (turkeyEl) turkeyEl.style.display = 'none';
 
                 // Display all matching cards (including cards 0..3)
                 allCards.forEach(card => {{
@@ -1653,6 +1968,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
 
             const heroEl = document.getElementById('heroSection');
             const subEl = document.getElementById('subHeadlinesSection');
+            const turkeyEl = document.getElementById('turkeySection');
             const titleEl = document.getElementById('sectionTitle');
             const countEl = document.getElementById('sectionCount');
             const noResultsEl = document.getElementById('noResultsState');
@@ -1660,6 +1976,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
 
             if (heroEl) heroEl.style.display = 'none';
             if (subEl) subEl.style.display = 'none';
+            if (turkeyEl) turkeyEl.style.display = 'none';
 
             let matchCount = 0;
             allCards.forEach(card => {{

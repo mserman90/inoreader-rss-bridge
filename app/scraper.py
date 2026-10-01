@@ -260,3 +260,81 @@ def scrape_inoreader(url: str, timeout: int = 15) -> Dict[str, Any]:
         "continuation_token": continuation_token,
         "fetched_at": base_time.isoformat(),
     }
+
+
+def scrape_turkey_water_news(limit: int = 25) -> List[Dict[str, Any]]:
+    """
+    Fetches real-time Turkish water news from Google News RSS feed:
+    DSİ projeleri, tarımsal sulama, baraj doluluk oranları, su yönetimi.
+    """
+    import xml.etree.ElementTree as ET
+    url = "https://news.google.com/rss/search?q=tar%C4%B1msal+sulama+OR+baraj+doluluk+OR+DS%C4%B0+su+OR+%22su+y%C3%B6netimi%22+OR+%22su+verimlili%C4%9Fi%22&hl=tr&gl=TR&ceid=TR:tr"
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/128.0.0.0 Safari/537.36"
+        )
+    }
+    items: List[Dict[str, Any]] = []
+    try:
+        resp = requests.get(url, headers=headers, timeout=12)
+        if resp.status_code == 200:
+            root = ET.fromstring(resp.text)
+            now_dt = datetime.now(timezone.utc)
+            for it in root.findall(".//item"):
+                if len(items) >= limit:
+                    break
+
+                raw_title = it.find("title").text if it.find("title") is not None else ""
+                link = it.find("link").text if it.find("link") is not None else ""
+                pub_str = it.find("pubDate").text if it.find("pubDate") is not None else ""
+                guid = it.find("guid").text if it.find("guid") is not None else link
+                source_el = it.find("source")
+                source_name = source_el.text if source_el is not None else "Türkiye Su Bülteni"
+
+                # Filter out social media platforms
+                combined_src = (link + " " + source_name).lower()
+                if any(bad in combined_src for bad in ["instagram.com", "youtube.com", "tiktok.com", "facebook.com", "twitter.com", "x.com", "linkedin.com", "pinterest.com"]):
+                    continue
+
+                # Parse date
+                pub_ts = int(now_dt.timestamp())
+                pub_rfc = email.utils.format_datetime(now_dt)
+                if pub_str:
+                    try:
+                        dt_parsed = email.utils.parsedate_to_datetime(pub_str)
+                        pub_ts = int(dt_parsed.timestamp())
+                        pub_rfc = email.utils.format_datetime(dt_parsed)
+                    except Exception:
+                        pass
+
+                # Clean title (Google News appends "- SourceName" at the end)
+                clean_title = raw_title
+                if " - " in raw_title:
+                    clean_title = raw_title.rsplit(" - ", 1)[0].strip()
+
+                desc_el = it.find("description")
+                raw_desc = desc_el.text if desc_el is not None else ""
+                clean_desc = BeautifulSoup(raw_desc, "html.parser").get_text(" ", strip=True) if raw_desc else clean_title
+
+                items.append({
+                    "guid": f"tr_water:{guid}",
+                    "title": clean_title,
+                    "title_tr": clean_title,
+                    "link": link,
+                    "author": source_name,
+                    "source_feed": f"🇹🇷 {source_name}",
+                    "description": clean_desc,
+                    "summary_tr": clean_desc,
+                    "category_tr": "Türkiye",
+                    "is_turkey": 1,
+                    "image_url": "",
+                    "pub_date": pub_rfc,
+                    "pub_date_ts": pub_ts,
+                    "raw_date_str": pub_str,
+                })
+    except Exception as e:
+        logger.warning("Turkey water news scrape failed: %s", e)
+
+    return items
