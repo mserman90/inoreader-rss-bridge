@@ -105,7 +105,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         if not img or "inoreader.com/camo" in img:
             img = resolve_article_image(it, idx)
         title_tr = it.get("title_tr") or it.get("title")
-        summary_tr = it.get("summary_tr") or clean_html_tags(it.get("description", ""))
+        summary_tr = it.get("summary_tr") or "Detaylar ilgili bilimsel araştırma ve haber bülteninde yer almaktadır."
         source = it.get("source_feed") or it.get("author") or "Bilimsel Araştırma"
         is_turkey = bool(it.get("is_turkey") or it.get("category_tr") == "Türkiye" or "🇹🇷" in source)
         category = "Türkiye" if is_turkey else (it.get("category_tr") or "Su Kaynakları")
@@ -212,9 +212,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
                 <h3 class="card-title" onclick="openArticleModal({it['id']})">
                     {html.escape(it['title_tr'])}
                 </h3>
-                <h5 class="card-title-en">
-                    Orijinal Başlık: {html.escape(it['title_en'])}
-                </h5>
+                {f'<h5 class="card-title-en">Orijinal Başlık: {html.escape(it["title_en"])}</h5>' if (it.get('title_en') and it['title_en'] != it['title_tr']) else ''}
                 <p class="card-excerpt">
                     {html.escape(it['summary_tr'][:180])}...
                 </p>
@@ -273,7 +271,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
                     <span>🏛️ {html.escape(h['source'][:40])}</span>
                 </div>
                 <h2 class="hero-title">{html.escape(h['title_tr'])}</h2>
-                <h4 class="hero-title-en">Orijinal Başlık: {html.escape(h['title_en'])}</h4>
+                {f'<h4 class="hero-title-en">Orijinal Başlık: {html.escape(h["title_en"])}</h4>' if (h.get('title_en') and h['title_en'] != h['title_tr']) else ''}
                 <p class="hero-summary">{html.escape(h['summary_tr'][:320])}...</p>
                 <div class="hero-footer">
                     <button class="btn-hero-read">Tam Haberi ve Analizi Oku &rarr;</button>
@@ -1795,7 +1793,13 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             document.getElementById('modalBadge').innerText = (it.is_turkey ? '🇹🇷 ' : '') + it.category;
             document.getElementById('modalHeaderCategory').innerText = (it.is_turkey ? 'TÜRKİYE SU BÜLTENİ &bull; ' : '') + it.category.toUpperCase() + ' &bull; SU HABER BÜLTENİ';
             document.getElementById('modalTitleTr').innerText = it.title_tr;
-            document.getElementById('modalTitleEn').innerText = 'Orijinal Başlık: ' + it.title_en;
+            const titleEnEl = document.getElementById('modalTitleEn');
+            if (it.title_en && it.title_en !== it.title_tr) {{
+                titleEnEl.innerText = 'Orijinal Başlık: ' + it.title_en;
+                titleEnEl.style.display = 'block';
+            }} else {{
+                titleEnEl.style.display = 'none';
+            }}
             document.getElementById('modalDate').innerText = '📅 ' + it.date;
             document.getElementById('modalSource').innerText = '🏛️ ' + it.source;
             document.getElementById('modalAuthor').innerText = it.author ? '✍️ ' + it.author : '✍️ Akademik Kurul';

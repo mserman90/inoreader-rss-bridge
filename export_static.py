@@ -22,7 +22,13 @@ from app import config
 from app.storage import Storage
 from app.scraper import scrape_inoreader, scrape_turkey_water_news
 from app.feed import generate_rss_2_xml, generate_atom_xml, generate_json_feed
-from app.translator import batch_translate_articles, categorize_article
+from app.translator import (
+    batch_translate_articles,
+    categorize_article,
+    translate_to_turkish,
+    generate_turkish_editorial_summary,
+    is_genuinely_turkish
+)
 from app.portal import generate_newspaper_portal_html
 from app.podcast import generate_daily_podcast
 import re
@@ -61,7 +67,11 @@ def main():
 
     # Persist translations, updated categories, Turkey flag and resolved images into SQLite
     for idx, it in enumerate(items):
-        title_tr = it.get("title_tr") or it["title"]
+        title_tr = it.get("title_tr")
+        if not title_tr or not is_genuinely_turkish(title_tr):
+            title_tr = translate_to_turkish(it["title"])
+        it["title_tr"] = title_tr
+
         source = it.get("source_feed") or ""
         desc = it.get("description") or ""
 
@@ -78,10 +88,15 @@ def main():
             category_tr = categorize_article(title_tr + " " + it["title"], desc)
         it["category_tr"] = category_tr
 
+        summary_tr = it.get("summary_tr")
+        if not summary_tr or not is_genuinely_turkish(summary_tr):
+            summary_tr = generate_turkish_editorial_summary(title_tr, category_tr, source, "")
+        it["summary_tr"] = summary_tr
+
         storage.update_item_translation(
             it["guid"],
             title_tr,
-            it.get("summary_tr", ""),
+            summary_tr,
             category_tr,
             is_turkey
         )

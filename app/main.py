@@ -51,7 +51,8 @@ def perform_sync():
                     it["guid"],
                     it["title_tr"],
                     it.get("summary_tr", ""),
-                    it.get("category_tr", "Su Kaynakları")
+                    it.get("category_tr", "Su Kaynakları"),
+                    it.get("is_turkey", 0)
                 )
 
         now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
