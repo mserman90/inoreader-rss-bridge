@@ -476,7 +476,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             align-items: center;
             white-space: nowrap;
             will-change: transform;
-            animation: continuousTickerScroll 45s linear infinite;
+            animation: continuousTickerScroll 68s linear infinite;
         }}
         .ticker-track:hover {{
             animation-play-state: paused;
