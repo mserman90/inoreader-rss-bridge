@@ -9,8 +9,65 @@ def clean_html_tags(text: str) -> str:
     clean = re.sub(r'<[^>]+>', ' ', text)
     return " ".join(clean.split())
 
-def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: str, rss_url: str, atom_url: str, json_url: str) -> str:
+def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: str, rss_url: str, atom_url: str, json_url: str, podcast_info: Dict[str, Any] = None) -> str:
     today_str = datetime.now(timezone.utc).strftime("%d.%m.%Y")
+    
+    # Podcast HTML Hazırlığı
+    podcast_banner_html = ""
+    podcast_sidebar_html = ""
+    if podcast_info and podcast_info.get("latest_episode"):
+        ep = podcast_info["latest_episode"]
+        audio_url = ep.get("audio_url") or podcast_info.get("latest_audio_url")
+        podcast_rss = podcast_info.get("podcast_rss_url") or f"{rss_url.rsplit('/', 1)[0]}/podcast.xml"
+        ep_title = html.escape(ep.get("title", "Günlük Sesli Bülten"))
+        ep_desc = html.escape(ep.get("description", ""))
+        
+        podcast_banner_html = f"""
+        <section class="podcast-banner-card">
+            <div class="podcast-banner-header">
+                <div class="podcast-badge-group">
+                    <span class="podcast-pill">🎙️ GÜNLÜK SESLİ BÜLTEN &bull; PODCAST</span>
+                    <span class="podcast-time-pill">⏰ Her Gün 10:00'da Yayında</span>
+                </div>
+                <div class="podcast-rss-quick">
+                    <span class="podcast-rss-label">Sabit Podcast RSS:</span>
+                    <code id="topPodcastRss">{podcast_rss}</code>
+                    <button class="btn-copy-podcast-sm" onclick="navigator.clipboard.writeText('{podcast_rss}'); alert('Sabit Podcast RSS linki kopyalandı!');">📋 Kopyala</button>
+                </div>
+            </div>
+            <div class="podcast-banner-body">
+                <div class="podcast-info-col">
+                    <h3 class="podcast-title">{ep_title}</h3>
+                    <p class="podcast-desc">{ep_desc}</p>
+                </div>
+                <div class="podcast-player-col">
+                    <audio controls preload="none" class="portal-audio-player">
+                        <source src="{audio_url}" type="audio/mpeg">
+                        Tarayıcınız ses etiketini desteklemiyor.
+                    </audio>
+                    <div class="podcast-player-footer">
+                        <a href="{audio_url}" download class="link-download-ep">📥 Bölümü İndir (MP3)</a>
+                        <a href="{podcast_rss}" target="_blank" class="link-rss-ep">📡 Podcast XML Akışı &rarr;</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+        """
+
+        podcast_sidebar_html = f"""
+        <div class="sidebar-card sidebar-podcast-box">
+            <h4 style="color:#0284c7; font-size:15px; margin-bottom:6px;">🎙️ Sabit Podcast Yayını</h4>
+            <p style="font-size:12px; color:var(--ink-muted); margin-bottom:8px;">Apple Podcasts, Spotify veya Pocket Casts uygulamanıza ekleyin:</p>
+            <div class="rss-url-display" id="sidebarPodcastUrl">{podcast_rss}</div>
+            <button class="btn-copy-rss" style="background:#0284c7;" onclick="navigator.clipboard.writeText('{podcast_rss}'); alert('Sabit Podcast RSS linki kopyalandı!');">
+                📋 Podcast RSS Linkini Kopyala
+            </button>
+            <div style="margin-top:10px; font-size:11px; text-align:center;">
+                <a href="{audio_url}" target="_blank" style="color:#0284c7; font-weight:bold;">▶️ Son Bölümü Dinle</a> &bull; 
+                <a href="{podcast_rss}" target="_blank" style="color:#0284c7; font-weight:bold;">XML Akışı</a>
+            </div>
+        </div>
+        """
     
     # Sort items by date
     items_sorted = sorted(items, key=lambda x: x.get("pub_date_ts", 0), reverse=True)
@@ -1008,6 +1065,126 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         }}
         .btn-copy-rss:hover {{ background: #15803d; }}
 
+        /* Podcast Banner Card */
+        .podcast-banner-card {{
+            background: linear-gradient(135deg, #0b2545 0%, #134074 100%);
+            color: #ffffff;
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 28px;
+            box-shadow: 0 8px 24px rgba(11, 37, 69, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }}
+        [data-theme="dark"] .podcast-banner-card {{
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border-color: #334155;
+        }}
+        .podcast-banner-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            padding-bottom: 12px;
+        }}
+        .podcast-badge-group {{
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }}
+        .podcast-pill {{
+            background: #38bdf8;
+            color: #0b1a30;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }}
+        .podcast-time-pill {{
+            background: rgba(255, 255, 255, 0.15);
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }}
+        .podcast-rss-quick {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }}
+        .podcast-rss-quick code {{
+            background: rgba(0, 0, 0, 0.3);
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: #7dd3fc;
+            font-family: monospace;
+            font-size: 11px;
+        }}
+        .btn-copy-podcast-sm {{
+            background: #0284c7;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            font-weight: 600;
+        }}
+        .btn-copy-podcast-sm:hover {{ background: #0369a1; }}
+        .podcast-banner-body {{
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 24px;
+            align-items: center;
+        }}
+        @media (max-width: 860px) {{
+            .podcast-banner-body {{ grid-template-columns: 1fr; }}
+        }}
+        .podcast-title {{
+            margin: 0 0 6px 0;
+            font-size: 1.2rem;
+            color: #ffffff;
+            font-family: 'Playfair Display', serif;
+        }}
+        .podcast-desc {{
+            margin: 0;
+            font-size: 13px;
+            color: #cbd5e1;
+            line-height: 1.5;
+        }}
+        .portal-audio-player {{
+            width: 100%;
+            height: 40px;
+            border-radius: 6px;
+            outline: none;
+        }}
+        .podcast-player-footer {{
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            margin-top: 8px;
+        }}
+        .podcast-player-footer a {{
+            color: #7dd3fc;
+            text-decoration: none;
+            font-weight: 600;
+        }}
+        .podcast-player-footer a:hover {{ text-decoration: underline; }}
+        .sidebar-podcast-box {{
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }}
+        [data-theme="dark"] .sidebar-podcast-box {{
+            background: #0f172a;
+            border-color: #0369a1;
+        }}
+
         /* Modal / Article Reading Window */
         .modal-backdrop {{
             position: fixed;
@@ -1218,6 +1395,9 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         <!-- Hero / Gunun Manseti -->
         {hero_html}
 
+        <!-- Gunluk Podcast Oynatici Karti -->
+        {podcast_banner_html}
+
         <!-- Sub Headlines (Surmansetler) -->
         <section class="sub-headlines-grid" id="subHeadlinesSection">
             {secondary_html}
@@ -1278,6 +1458,9 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
                         <span class="stat-value">%25 Artış</span>
                     </div>
                 </div>
+
+                <!-- Sabit Podcast Akisi (Sidebar) -->
+                {podcast_sidebar_html}
 
                 <!-- Live RSS Subscription Card -->
                 <div class="sidebar-card sidebar-rss-box">

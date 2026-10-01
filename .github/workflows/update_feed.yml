@@ -2,7 +2,9 @@ name: Update RSS Feed & Deploy to GitHub Pages
 
 on:
   schedule:
-    # Her 30 dakikada bir otomatik çalışır (yoğunluğu önlemek için :13 ve :43 dakikalarında tetiklenir)
+    # Her sabah Türkiye saati ile 10:00'da (07:00 UTC) günlük podcast ve bülten yayını
+    - cron: "0 7 * * *"
+    # Gün içi periyodik haber taramaları
     - cron: "13,43 * * * *"
   workflow_dispatch:
   push:
@@ -35,10 +37,12 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Restore SQLite Database Cache
+      - name: Restore SQLite Database & Podcast Cache
         uses: actions/cache@v4
         with:
-          path: data/feed_items.db
+          path: |
+            data/feed_items.db
+            data/podcast_episodes.json
           key: feed-db-${{ runner.os }}-${{ github.run_id }}
           restore-keys: |
             feed-db-${{ runner.os }}-

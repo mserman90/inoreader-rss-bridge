@@ -24,6 +24,7 @@ from app.scraper import scrape_inoreader
 from app.feed import generate_rss_2_xml, generate_atom_xml, generate_json_feed
 from app.translator import batch_translate_articles, categorize_article
 from app.portal import generate_newspaper_portal_html
+from app.podcast import generate_daily_podcast
 
 def main():
     dist_dir = Path(os.getenv("DIST_DIR", config.BASE_DIR / "dist"))
@@ -129,12 +130,19 @@ def main():
     (dist_dir / "feed.json").write_text(json.dumps(json_data, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"[+] Üretildi: {dist_dir / 'feed.json'}")
 
-    # 4. Generate Modern Newspaper Theme Portal in dist/index.html
-    portal_html = generate_newspaper_portal_html(items, now_str, rss_self, atom_self, json_self)
-    (dist_dir / "index.html").write_text(portal_html, encoding="utf-8")
-    print(f"[+] Üretildi: {dist_dir / 'index.html'} ('Su Haber Bülteni' Modern Gazete Portalı)")
+    # 4. Generate Daily Podcast & Podcast RSS Feed (podcast.xml)
+    podcast_info = None
+    try:
+        podcast_info = generate_daily_podcast(items, dist_dir, public_url)
+    except Exception as pe:
+        print(f"[!] Podcast üretimi sırasında hata: {pe}")
 
-    print("[*] Tüm gazete portalı ve yayın dosyaları başarıyla hazırlandı!")
+    # 5. Generate Modern Newspaper Theme Portal in dist/index.html with Podcast Player
+    portal_html = generate_newspaper_portal_html(items, now_str, rss_self, atom_self, json_self, podcast_info=podcast_info)
+    (dist_dir / "index.html").write_text(portal_html, encoding="utf-8")
+    print(f"[+] Üretildi: {dist_dir / 'index.html'} ('Su Haber Bülteni' Modern Gazete Portalı & Podcast)")
+
+    print("[*] Tüm gazete portalı, podcast ve yayın dosyaları başarıyla hazırlandı!")
 
 if __name__ == "__main__":
     main()
