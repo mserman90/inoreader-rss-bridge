@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 # Sabit WhatsApp Grubu Bilgileri
 TARGET_GROUP_INVITE_URL = "https://chat.whatsapp.com/FT0rXnxAH4IGIwTCEjLADd"
 TARGET_GROUP_INVITE_CODE = "FT0rXnxAH4IGIwTCEjLADd"
+DEFAULT_TARGET_CHAT_ID = "120363407405890390@g.us"
 
 def get_history_file_path() -> Path:
     base_dir = Path(__file__).resolve().parent.parent
@@ -135,28 +136,24 @@ Türkiye ve Dünya su gündeminden, baraj doluluk oranlarından ve tarımsal sul
 
     return msg.strip()
 
-def send_via_green_api(instance_id: str, api_token: str, chat_id: Optional[str], message: str, audio_url: Optional[str]) -> bool:
+def send_via_green_api(instance_id: str, api_token: str, chat_id: Optional[str], message: str, audio_url: Optional[str], api_url: Optional[str] = None) -> bool:
     """Green API kullanarak WhatsApp grubuna katılır ve ses/metin mesajı gönderir."""
-    base_api = f"https://api.green-api.com/waInstance{instance_id}"
+    host = api_url or os.getenv("GREEN_API_URL")
+    if not host:
+        prefix = str(instance_id)[:4] if len(str(instance_id)) >= 4 else ""
+        if prefix.isdigit():
+            host = f"https://{prefix}.api.greenapi.com"
+        else:
+            host = "https://api.green-api.com"
+    base_api = f"{host.rstrip('/')}/waInstance{instance_id}"
     
-    # 1. Eğer chat_id belirtilmediyse, davet linkiyle gruba katıl
-    actual_chat_id = chat_id
+    # 1. Chat ID belirle veya varsayılan hedef grubu kullan
+    actual_chat_id = chat_id or DEFAULT_TARGET_CHAT_ID
     if not actual_chat_id or not actual_chat_id.endswith("@g.us"):
-        join_url = f"{base_api}/joinGroup/{api_token}"
-        try:
-            print(f"[*] Green-API: Gruba katılınıyor (Davet Kodu: {TARGET_GROUP_INVITE_CODE})...")
-            join_resp = requests.post(join_url, json={"inviteCode": TARGET_GROUP_INVITE_CODE}, timeout=15)
-            if join_resp.status_code == 200:
-                join_data = join_resp.json()
-                actual_chat_id = join_data.get("chatId")
-                print(f"[+] WhatsApp grubuna başarıyla katılındı! Chat ID: {actual_chat_id}")
-            else:
-                print(f"[!] Gruba katılma yanıtı: {join_resp.status_code} - {join_resp.text}")
-        except Exception as e:
-            logger.warning("Green-API gruba katılma isteği başarısız: %s", e)
+        actual_chat_id = DEFAULT_TARGET_CHAT_ID
 
     if not actual_chat_id:
-        print("[-] Grup Chat ID belirlenemedi. Lütfen WHATSAPP_CHAT_ID tanımlayın.")
+        safe_print("[-] Grup Chat ID belirlenemedi. Lütfen WHATSAPP_CHAT_ID tanımlayın.")
         return False
 
     # 2. Metin mesajını gönder
@@ -167,15 +164,16 @@ def send_via_green_api(instance_id: str, api_token: str, chat_id: Optional[str],
     }
     
     try:
-        print(f"[*] Green-API: Grup bülten mesajı gönderiliyor -> {actual_chat_id}...")
+        safe_print(f"[*] Green-API: Grup bülten mesajı gönderiliyor -> {actual_chat_id}...")
         resp = requests.post(msg_url, json=msg_payload, timeout=20)
         if resp.status_code == 200:
-            print(f"[+] WhatsApp bülten metni başarıyla iletildi: {resp.json().get('idMessage', 'OK')}")
+            safe_print(f"[+] WhatsApp bülten metni başarıyla iletildi: {resp.json().get('idMessage', 'OK')}")
         else:
-            print(f"[!] Green-API mesaj hatası: {resp.status_code} - {resp.text}")
+            safe_print(f"[!] Green-API mesaj hatası: {resp.status_code} - {resp.text}")
             return False
     except Exception as e:
         logger.error("Green-API sendMessage hatası: %s", e)
+        safe_print(f"[!] Green-API sendMessage hatası: {e}")
         return False
 
     # 3. Ses dosyasını doğrudan WhatsApp grubuna gönder (Playable audio)
@@ -188,14 +186,15 @@ def send_via_green_api(instance_id: str, api_token: str, chat_id: Optional[str],
             "caption": "🎙️ Günlük Su & Sulama Sesli Bülteni"
         }
         try:
-            print("[*] Green-API: Podcast ses dosyası (MP3) WhatsApp grubuna yükleniyor...")
+            safe_print("[*] Green-API: Podcast ses dosyası (MP3) WhatsApp grubuna yükleniyor...")
             f_resp = requests.post(file_url, json=file_payload, timeout=30)
             if f_resp.status_code == 200:
-                print(f"[+] Podcast ses dosyası gruba başarıyla iletildi: {f_resp.json().get('idMessage', 'OK')}")
+                safe_print(f"[+] Podcast ses dosyası gruba başarıyla iletildi: {f_resp.json().get('idMessage', 'OK')}")
             else:
-                print(f"[!] Green-API ses gönderme uyarısı: {f_resp.status_code} - {f_resp.text}")
+                safe_print(f"[!] Green-API ses gönderme uyarısı: {f_resp.status_code} - {f_resp.text}")
         except Exception as e:
             logger.warning("Green-API sendFileByUrl hatası: %s", e)
+            safe_print(f"[!] Green-API sendFileByUrl hatası: {e}")
 
     return True
 
@@ -249,6 +248,7 @@ def send_daily_podcast_to_whatsapp(
     # Yapılandırmaları ortam değişkenlerinden oku
     green_instance = os.getenv("GREEN_API_INSTANCE_ID") or os.getenv("WHATSAPP_INSTANCE_ID")
     green_token = os.getenv("GREEN_API_TOKEN") or os.getenv("WHATSAPP_API_TOKEN")
+    green_url = os.getenv("GREEN_API_URL")
     chat_id = os.getenv("WHATSAPP_CHAT_ID")
     webhook_url = os.getenv("WHATSAPP_WEBHOOK_URL")
 
@@ -257,7 +257,7 @@ def send_daily_podcast_to_whatsapp(
 
     if green_instance and green_token:
         provider = "green_api"
-        success = send_via_green_api(green_instance, green_token, chat_id, message, audio_url)
+        success = send_via_green_api(green_instance, green_token, chat_id, message, audio_url, api_url=green_url)
     elif webhook_url:
         provider = "webhook"
         success = send_via_webhook(webhook_url, message, podcast_info, public_url)
