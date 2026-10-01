@@ -25,11 +25,18 @@ def is_already_turkish(text: str) -> bool:
     """Checks if text already contains Turkish-specific characters or common Turkish words."""
     if not text:
         return False
-    # Turkish-unique letters
-    if re.search(r'[ğşıİçĞŞIİÇ]', text):
+    # Turkish-unique letters: ç, ğ, ı, ö, ş, ü, Ç, Ğ, İ, Ö, Ş, Ü
+    if re.search(r'[çğıöşüÇĞİÖŞÜ]', text):
         return True
-    # Common Turkish water & scientific words
-    if re.search(r'\b(ve|ile|için|olan|bir|bu|su|sulama|tarım|kuraklık|iklim|taşkın|arıtma|şebeke|yönetimi|analizi|araştırması|üzerine|etkileri)\b', text.lower()):
+    # Common Turkish words with word boundaries
+    turkish_words = (
+        r'\b(ve|ile|için|olan|bir|bu|şu|o|da|de|su|sulama|tarım|kuraklık|iklim|taşkın|sel|arıtma|'
+        r'şebeke|yönetimi|analizi|araştırması|üzerine|etkileri|harcıyor|dolar|milyar|milyon|haber|'
+        r'bülteni|türkiye|baraj|havza|nehir|göl|yağış|sıcaklık|proje|bakanlığı|genel|müdürlüğü|dsi|'
+        r'tarımsal|çevre|rapor|verileri|yılı|gün|ay|yıl|nasıl|neden|kadar|yeni|büyük|son|sonra|'
+        r'önce|olarak|göre|karşı|tarafından|çalışma|dünya|küresel|tasarruf|toprak|ürün)\b'
+    )
+    if re.search(turkish_words, text.lower()):
         return True
     return False
 
@@ -47,11 +54,26 @@ def detect_language(text: str) -> str:
             return "de"
     return "autodetect"
 
+def is_valid_translation(trans_text: str) -> bool:
+    """Verifies that the translated text is not an API warning or error message."""
+    if not trans_text or not trans_text.strip():
+        return False
+    upper = trans_text.upper()
+    if "PLEASE SELECT" in upper or "MYMEMORY WARNING" in upper or "INVALID" in upper or "QUOTA EXCEEDED" in upper:
+        return False
+    return True
+
 def translate_single_text(text: str, timeout: int = 8) -> str:
     if not text or not text.strip():
         return ""
 
     clean_text = text.strip()
+
+    # 1. Zaten Türkçe ise ASLA çeviri API'sine gönderme! Doğrudan döndür.
+    if is_already_turkish(clean_text):
+        _TRANS_CACHE[clean_text] = clean_text
+        return clean_text
+
     if clean_text in _TRANS_CACHE:
         return _TRANS_CACHE[clean_text]
 
@@ -70,7 +92,7 @@ def translate_single_text(text: str, timeout: int = 8) -> str:
         if resp.status_code == 200:
             data = resp.json()
             trans = data.get("responseData", {}).get("translatedText")
-            if trans and not trans.startswith("MYMEMORY WARNING"):
+            if is_valid_translation(trans):
                 res = html.unescape(trans).strip().strip('"\'')
                 _TRANS_CACHE[clean_text] = res
                 return res
@@ -86,13 +108,14 @@ def translate_single_text(text: str, timeout: int = 8) -> str:
                 if resp.status_code == 200:
                     data = resp.json()
                     trans = data.get("responseData", {}).get("translatedText")
-                    if trans and not trans.startswith("MYMEMORY WARNING"):
+                    if is_valid_translation(trans):
                         res = html.unescape(trans).strip().strip('"\'')
                         _TRANS_CACHE[clean_text] = res
                         return res
             except Exception:
                 pass
 
+    # Hiçbir çeviri yapılamadıysa veya hata döndüyse orijinal metni koru
     _TRANS_CACHE[clean_text] = clean_text
     return clean_text
 
@@ -175,6 +198,19 @@ def needs_translation(it: Dict) -> bool:
     """Determines if an item requires translation or re-translation."""
     title = (it.get("title") or "").strip()
     title_tr = (it.get("title_tr") or "").strip()
+    summary_tr = (it.get("summary_tr") or "").strip()
+    
+    # Bozuk / Hata mesajı içeren başlıklar kesinlikle düzeltilmeli
+    if "PLEASE SELECT" in title_tr or "MYMEMORY" in title_tr or "PLEASE SELECT" in summary_tr:
+        return True
+
+    # Başlık zaten Türkçe ise asla çeviri servisine gönderilmemeli
+    if is_already_turkish(title):
+        if title_tr != title:
+            return True
+        if not summary_tr or summary_tr.lower().startswith("kaynak:"):
+            return True
+        return False
     
     if not title_tr:
         return True
@@ -188,7 +224,6 @@ def needs_translation(it: Dict) -> bool:
     if re.search(r'\b(der|die|das|und|aus|für|über|nach|beim|mit|von|des|den|dem|im|ist|wiedergewählt|schutzübung|auszubildende|berufliche|zukunft)\b', title_tr.lower()):
         return True
     # If summary_tr is missing or starts with metadata text
-    summary_tr = (it.get("summary_tr") or "").strip()
     if not summary_tr or summary_tr.lower().startswith("kaynak:"):
         return True
         
@@ -203,15 +238,20 @@ def batch_translate_articles(items: List[Dict]) -> List[Dict]:
     if not items_to_translate:
         return items
 
-    print(f"[*] {len(items_to_translate)} makale paralel olarak Türkçe'ye çevriliyor ve derleniyor...")
+    print(f"[*] {len(items_to_translate)} makale kontrol ediliyor ve derleniyor...")
 
     def do_translate(it):
         guid = it["guid"]
-        title_orig = it["title"]
+        title_orig = (it.get("title") or "").strip()
         source_feed = it.get("source_feed", "")
         
-        # Translate title
-        title_tr = translate_single_text(title_orig)
+        # 1. Başlık zaten Türkçe ise doğrudan kullan, ASLA çevirme!
+        if is_already_turkish(title_orig):
+            title_tr = title_orig
+        else:
+            title_tr = translate_single_text(title_orig)
+            if not is_valid_translation(title_tr):
+                title_tr = title_orig
         
         # Categorize with both original and translated text
         category = categorize_article(title_orig + " " + title_tr, it.get("description", ""))
@@ -220,10 +260,17 @@ def batch_translate_articles(items: List[Dict]) -> List[Dict]:
         real_body = extract_real_body_text(it.get("description", ""))
         real_body_tr = ""
         if real_body:
-            real_body_tr = translate_single_text(real_body[:350])
+            if is_already_turkish(real_body):
+                real_body_tr = real_body
+            else:
+                real_body_tr = translate_single_text(real_body[:350])
+                if not is_valid_translation(real_body_tr):
+                    real_body_tr = real_body
         
         # Generate rich editorial summary
         summary_tr = generate_turkish_editorial_summary(title_tr, category, source_feed, real_body_tr)
+        if not is_valid_translation(summary_tr):
+            summary_tr = generate_turkish_editorial_summary(title_tr, category, source_feed, "")
 
         return guid, title_tr, summary_tr, category
 
