@@ -168,6 +168,14 @@ def main():
     (dist_dir / "index.html").write_text(portal_html, encoding="utf-8")
     print(f"[+] Üretildi: {dist_dir / 'index.html'} ('Su Haber Bülteni' Modern Gazete Portalı & Podcast)")
 
+    # 6. Dispatch Daily Podcast to WhatsApp Group
+    if podcast_info and podcast_info.get("latest_episode"):
+        try:
+            from app.whatsapp import send_daily_podcast_to_whatsapp
+            send_daily_podcast_to_whatsapp(podcast_info, items, public_url)
+        except Exception as we:
+            print(f"[!] WhatsApp paylaşımı sırasında hata: {we}")
+
     print("[*] Tüm gazete portalı, podcast ve yayın dosyaları başarıyla hazırlandı!")
 
 if __name__ == "__main__":
