@@ -395,30 +395,6 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
             transform: translate(1px, -1px);
             opacity: 1;
         }}
-        .top-bar-right {{
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }}
-        .theme-toggle-btn {{
-            background: var(--theme-toggle-bg);
-            color: var(--theme-toggle-color);
-            border: 1px solid var(--theme-toggle-border);
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 11.5px;
-            font-weight: 700;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            transition: all 0.2s ease;
-            user-select: none;
-        }}
-        .theme-toggle-btn:hover {{
-            transform: translateY(-1px);
-            opacity: 0.9;
-        }}
 
 
         /* Newspaper Header / Masthead */
@@ -1340,11 +1316,6 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
                 <span>🗓️ {today_str}</span>
                 <a href="https://www.wri.org/applications/aqueduct/water-risk-atlas/" target="_blank" rel="noopener noreferrer" class="top-stat-link" title="Hesaplama Kaynağı: WRI (World Resources Institute) Aqueduct Su Riski ve Stresi Atlası">💧 Türkiye Su Stresi: %64.2 <span class="ext-link-icon">↗</span></a>
             </div>
-            <div class="top-bar-right">
-                <button type="button" id="themeToggleBtnTop" class="theme-toggle-btn" onclick="toggleTheme()" title="Gece / Gündüz Temasını Değiştir" aria-label="Temayı Değiştir">
-                    <span class="theme-icon">🌙</span> <span class="theme-text">Gece Modu</span>
-                </button>
-            </div>
         </div>
     </div>
 
@@ -1718,14 +1689,7 @@ def generate_newspaper_portal_html(items: List[Dict[str, Any]], last_updated: st
         function updateThemeElements(theme) {{
             const isDark = (theme === 'dark');
             const icon = isDark ? '☀️' : '🌙';
-            const labelText = isDark ? 'Gündüz Modu' : 'Gece Modu';
             const tooltip = isDark ? 'Gündüz Moduna Geç' : 'Gece Moduna Geç';
-
-            const btnTop = document.getElementById('themeToggleBtnTop');
-            if (btnTop) {{
-                btnTop.innerHTML = `<span class="theme-icon">${{icon}}</span> <span class="theme-text">${{labelText}}</span>`;
-                btnTop.title = tooltip;
-            }}
 
             const btnNav = document.getElementById('themeToggleBtnNav');
             if (btnNav) {{
